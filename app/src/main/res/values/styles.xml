@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.BlowAway" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="android:windowSplashScreenBackground">#F8FAFC</item>
+    </style>
+</resources>

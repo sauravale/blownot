@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">BlowAway</string>
+    <string name="accessibility_description">Detects heads-up notifications and dismisses their temporary banner after a confirmed blow gesture.</string>
+</resources>
