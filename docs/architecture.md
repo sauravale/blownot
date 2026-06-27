@@ -28,3 +28,8 @@ flowchart TD
 `Idle -> NotificationActive -> ListeningForBlow -> BlowConfirmed -> SwipeGestureExecuted -> Cooldown -> Idle`
 
 The microphone service only analyzes frames in `ListeningForBlow`, which limits battery use and reduces false triggers.
+
+
+## Lightweight Runtime
+
+The app should minimize APK size, dependency count, CPU, memory, and battery use. Keep microphone analysis frame-based and local, avoid recording persistence, avoid network work, and keep optional heavier detector backends such as TensorFlow Lite out of the shipping build until they are justified by measured accuracy gains.

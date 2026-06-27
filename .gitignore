@@ -1,0 +1,34 @@
+﻿# Gradle / Android build outputs
+.gradle/
+.gradle-local/
+.kotlin/
+build/
+**/build/
+
+# Local machine configuration
+local.properties
+*.iml
+.idea/
+
+# Android generated artifacts
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Logs and crash dumps
+*.log
+hs_err_pid*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Codex/local agent workspace metadata
+.agents/
+.codex/

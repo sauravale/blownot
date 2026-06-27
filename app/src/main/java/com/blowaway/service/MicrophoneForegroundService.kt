@@ -29,11 +29,13 @@ class MicrophoneForegroundService : Service() {
     @Inject lateinit var detector: BlowDetector
     @Inject lateinit var stateMachine: StateMachine
     @Inject lateinit var diagnosticsRepository: DiagnosticsRepository
+    @Inject lateinit var calibrationRepository: CalibrationRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onCreate() {
         super.onCreate()
+        BlowAwayLog.i("microphone foreground service created")
         createChannel()
         startForeground(42, notification())
         observeState()
@@ -42,6 +44,7 @@ class MicrophoneForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        BlowAwayLog.i("microphone foreground service destroyed")
         scope.cancel()
         super.onDestroy()
     }
@@ -50,15 +53,20 @@ class MicrophoneForegroundService : Service() {
         scope.launch {
             stateMachine.state.collectLatest { state ->
                 diagnosticsRepository.updateState(state)
+                BlowAwayLog.d("service observed state=$state")
+                if (state == AppState.DebugMicMonitor) {
+                    listenUntilStateChanges(allowDismissal = false)
+                }
                 if (state == AppState.NotificationActive || state == AppState.ListeningForBlow) {
                     stateMachine.onListeningStarted()
-                    listenUntilIdle()
+                    listenUntilStateChanges(allowDismissal = true)
                 }
             }
         }
     }
 
-    private suspend fun listenUntilIdle() {
+    private suspend fun listenUntilStateChanges(allowDismissal: Boolean) {
+        BlowAwayLog.i("audio loop starting allowDismissal=$allowDismissal")
         val sampleRate = 16_000
         val frameSize = sampleRate / 50
         val minBuffer = AudioRecord.getMinBufferSize(
@@ -76,7 +84,7 @@ class MicrophoneForegroundService : Service() {
         val buffer = ShortArray(frameSize)
         try {
             recorder.startRecording()
-            while (stateMachine.state.value == AppState.ListeningForBlow) {
+            while (stateMachine.state.value == AppState.ListeningForBlow || stateMachine.state.value == AppState.DebugMicMonitor) {
                 val read = recorder.read(buffer, 0, buffer.size)
                 if (read > 0) {
                     val samples = buffer.copyOf(read)
@@ -85,11 +93,23 @@ class MicrophoneForegroundService : Service() {
                         features = result.features,
                         confidence = result.confidence,
                         speechConfidence = result.speechConfidence,
+                        noiseFloor = result.noiseFloor,
+                        reason = result.reason,
                         waveform = samples.take(96).map { it / Short.MAX_VALUE.toFloat() }
                     )
-                    if (result.triggered) {
+                    calibrationRepository.observe(result.features, nowMillis = System.currentTimeMillis())
+                    if (result.reason != "ambient" && result.reason != "below threshold") {
+                        BlowAwayLog.d(
+                            "detector reason=${result.reason} trigger=${result.triggered} confidence=${"%.2f".format(result.confidence)} speech=${"%.2f".format(result.speechConfidence)} rms=${"%.3f".format(result.features.rms)} noise=${"%.3f".format(result.noiseFloor)} peak=${"%.3f".format(result.features.peak)} zcr=${"%.3f".format(result.features.zeroCrossingRate)} centroid=${"%.0f".format(result.features.spectralCentroid)} flatness=${"%.2f".format(result.features.spectralFlatness)}"
+                        )
+                    }
+                    if (result.triggered && allowDismissal) {
+                        BlowAwayLog.i("detector triggered dismissal")
                         stateMachine.onBlowConfirmed()
-                        AccessibilityBridge.dismissHeadsUp()
+                        val dismissed = AccessibilityBridge.dismissHeadsUp()
+                        if (!dismissed) {
+                            diagnosticsRepository.updateGesture("accessibility service unavailable")
+                        }
                         stateMachine.onCooldown()
                         delay(2_000)
                         stateMachine.onIdle()
@@ -99,6 +119,7 @@ class MicrophoneForegroundService : Service() {
                 }
             }
         } finally {
+            BlowAwayLog.i("audio loop stopping state=${stateMachine.state.value}")
             recorder.stop()
             recorder.release()
         }

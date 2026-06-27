@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationAdd
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -33,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -85,10 +87,21 @@ private fun BlowAwayApp(
     val settings by viewModel.settings.collectAsState()
     val diagnostics by viewModel.diagnostics.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
+    var pendingMicAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val micPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) startService()
+        if (granted) {
+            pendingMicAction?.invoke() ?: startService()
+            pendingMicAction = null
+        }
+    }
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            viewModel.postTestNotification()
+        }
     }
 
     Scaffold(
@@ -129,6 +142,7 @@ private fun BlowAwayApp(
             }
             Button(
                 onClick = {
+                    pendingMicAction = { startService() }
                     micPermission.launch(Manifest.permission.RECORD_AUDIO)
                 },
                 modifier = Modifier.fillMaxWidth()
@@ -136,11 +150,43 @@ private fun BlowAwayApp(
                 Icon(Icons.Default.Mic, contentDescription = null)
                 Text("Start protected listening")
             }
+            Button(
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        viewModel.postTestNotification()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.NotificationAdd, contentDescription = null)
+                Text("Test notification")
+            }
             Spacer(Modifier.height(2.dp))
             if (selectedTab == 0) {
                 SettingsScreen(settings = settings, onUpdate = viewModel::updateSettings)
             } else {
-                DebugScreen(diagnostics = diagnostics)
+                DebugScreen(
+                    diagnostics = diagnostics,
+                    onStartLiveMonitor = {
+                        pendingMicAction = {
+                            startService()
+                            viewModel.startDebugMicMonitor()
+                        }
+                        micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                    onStopLiveMonitor = viewModel::stopDebugMicMonitor,
+                    onStartCalibration = {
+                        pendingMicAction = {
+                            startService()
+                            viewModel.startCalibration()
+                        }
+                        micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                    onStopCalibration = viewModel::stopCalibration,
+                    onDebugGesture = viewModel::dispatchDebugGesture
+                )
             }
         }
     }

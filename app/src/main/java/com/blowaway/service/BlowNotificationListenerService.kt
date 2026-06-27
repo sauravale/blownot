@@ -24,16 +24,20 @@ class BlowNotificationListenerService : NotificationListenerService() {
     @Inject lateinit var diagnosticsRepository: DiagnosticsRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var activeNotificationKey: String? = null
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         scope.launch {
             val settings = settingsRepository.settings.first()
-            if (!settings.enabled || shouldIgnore(sbn.notification.category, settings.ignoreAlarms, settings.ignoreMedia)) {
+            if (!settings.enabled || shouldIgnore(sbn, settings.ignoreAlarms, settings.ignoreMedia)) {
+                BlowAwayLog.d("notification ignored package=${sbn.packageName} key=${sbn.key} category=${sbn.notification.category} ongoing=${sbn.isOngoing} flags=${sbn.notification.flags}")
                 return@launch
             }
             val now = System.currentTimeMillis()
             val ranking = Ranking()
             val importance = if (currentRanking.getRanking(sbn.key, ranking)) ranking.importance else 0
+            BlowAwayLog.i("notification accepted package=${sbn.packageName} key=${sbn.key} category=${sbn.notification.category} importance=$importance windowMs=${settings.listeningWindowMillis}")
+            activeNotificationKey = sbn.key
             notificationDao.upsert(
                 NotificationEntity(
                     key = sbn.key,
@@ -51,8 +55,14 @@ class BlowNotificationListenerService : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         scope.launch {
+            BlowAwayLog.i("notification removed package=${sbn.packageName} key=${sbn.key}")
             notificationDao.deleteByKey(sbn.key)
-            stateMachine.onIdle()
+            if (activeNotificationKey == sbn.key) {
+                activeNotificationKey = null
+                stateMachine.onIdle()
+            } else {
+                BlowAwayLog.d("ignored removal for inactive notification key=${sbn.key}")
+            }
         }
     }
 
@@ -61,8 +71,15 @@ class BlowNotificationListenerService : NotificationListenerService() {
         super.onDestroy()
     }
 
-    private fun shouldIgnore(category: String?, ignoreAlarms: Boolean, ignoreMedia: Boolean): Boolean {
-        return (ignoreAlarms && category == android.app.Notification.CATEGORY_ALARM) ||
+    private fun shouldIgnore(sbn: StatusBarNotification, ignoreAlarms: Boolean, ignoreMedia: Boolean): Boolean {
+        val category = sbn.notification.category
+        val flags = sbn.notification.flags
+        val persistentSystemNotification = sbn.isOngoing ||
+            flags and android.app.Notification.FLAG_ONGOING_EVENT != 0 ||
+            flags and android.app.Notification.FLAG_NO_CLEAR != 0
+        return persistentSystemNotification ||
+            (sbn.packageName == "com.android.systemui" && sbn.key.contains("charging", ignoreCase = true)) ||
+            (ignoreAlarms && category == android.app.Notification.CATEGORY_ALARM) ||
             (ignoreMedia && category == android.app.Notification.CATEGORY_TRANSPORT)
     }
 }

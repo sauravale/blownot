@@ -10,7 +10,12 @@ Open the folder in Android Studio or run:
 gradle test assembleDebug connectedDebugAndroidTest
 ```
 
-The project targets Android 16/API 36 and supports Android 10/API 29 and newer.
+The project compiles against Android 15/API 35 because the current AndroidX/Compose dependencies require it, but targets and supports Android 10/API 29 for Galaxy S9 testing. compileSdk is a build-time API stub and does not make the app require Android 15 at runtime.
+
+
+## Lightweight Requirement
+
+BlowAway should stay as lightweight as possible in code size, dependency footprint, build tooling, runtime CPU, memory, battery, and foreground-service work. Prefer platform APIs, simple Kotlin implementations, calibrated heuristics, and measured thresholds before adding heavier libraries, background processing, or ML runtimes. Any new dependency or always-running work must have a clear user-visible benefit and should be validated against APK size, build time, and idle runtime impact.
 
 ## Permissions
 
@@ -22,4 +27,4 @@ The app uses Kotlin, Jetpack Compose, MVVM, Hilt, Coroutines/Flow, Room, and Dat
 
 ## Detection
 
-Phase 1 ships a heuristic detector using adaptive RMS, zero crossing rate, noise floor tracking, clipping rejection, cooldown, and speech rejection features. Phase 2 adds a TensorFlow Lite detector implementation and a training pipeline plan in [docs/tflite_training_pipeline.md](docs/tflite_training_pipeline.md).
+Phase 1 ships a heuristic detector using adaptive RMS, zero crossing rate, noise floor tracking, clipping rejection, cooldown, and speech rejection features. TensorFlow Lite is intentionally excluded until the lightweight heuristic and calibration flow are stable; the future training plan is documented in [docs/tflite_training_pipeline.md](docs/tflite_training_pipeline.md).

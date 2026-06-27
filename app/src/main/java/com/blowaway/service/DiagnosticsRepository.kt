@@ -11,9 +11,12 @@ import javax.inject.Singleton
 
 data class DiagnosticsState(
     val rms: Float = 0f,
+    val peak: Float = 0f,
     val noiseFloor: Float = 0f,
     val blowConfidence: Float = 0f,
     val speechConfidence: Float = 0f,
+    val detectorReason: String = "",
+    val calibrationStatus: String = "Not calibrated in this session",
     val currentApplication: String = "",
     val currentNotificationKey: String = "",
     val accessibilityBounds: Rect? = null,
@@ -31,16 +34,29 @@ class DiagnosticsRepository @Inject constructor() {
     private val mutableDiagnostics = MutableStateFlow(DiagnosticsState())
     val diagnostics: StateFlow<DiagnosticsState> = mutableDiagnostics
 
-    fun updateAudio(features: BlowFeatures, confidence: Float, speechConfidence: Float, waveform: List<Float>) {
+    fun updateAudio(
+        features: BlowFeatures,
+        confidence: Float,
+        speechConfidence: Float,
+        noiseFloor: Float,
+        reason: String,
+        waveform: List<Float>
+    ) {
         mutableDiagnostics.update {
             it.copy(
                 rms = features.rms,
-                noiseFloor = features.rms * 0.4f,
+                peak = features.peak,
+                noiseFloor = noiseFloor,
                 blowConfidence = confidence,
                 speechConfidence = speechConfidence,
+                detectorReason = reason,
                 waveform = waveform
             )
         }
+    }
+
+    fun updateCalibration(status: String) {
+        mutableDiagnostics.update { it.copy(calibrationStatus = status) }
     }
 
     fun updateNotification(packageName: String, key: String) {
@@ -57,5 +73,9 @@ class DiagnosticsRepository @Inject constructor() {
 
     fun updateState(state: AppState) {
         mutableDiagnostics.update { it.copy(appState = state) }
+    }
+
+    fun updateCooldown(millisRemaining: Long) {
+        mutableDiagnostics.update { it.copy(cooldownMillisRemaining = millisRemaining) }
     }
 }

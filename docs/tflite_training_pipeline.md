@@ -28,4 +28,4 @@ Only `Blow` can trigger dismissal.
 
 ## Integration
 
-`TfliteBlowDetector` already implements the runtime inference path. The Hilt binding can be switched from `HeuristicBlowDetector` to `TfliteBlowDetector` after a validated model asset is added.
+The TensorFlow Lite runtime is intentionally not included while heuristic detection is being tuned. After a validated model asset is added, reintroduce the TFLite dependency, add a `TfliteBlowDetector` implementation behind the existing `BlowDetector` interface, and switch the Hilt binding from `HeuristicBlowDetector`.

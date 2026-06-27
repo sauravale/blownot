@@ -24,6 +24,7 @@ data class DetectionResult(
     val triggered: Boolean,
     val confidence: Float,
     val speechConfidence: Float,
+    val noiseFloor: Float,
     val features: BlowFeatures,
     val reason: String
 )

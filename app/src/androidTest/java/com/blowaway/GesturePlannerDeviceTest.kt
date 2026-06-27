@@ -1,4 +1,4 @@
-package com.blowaway.core.detection
+package com.blowaway
 
 import android.graphics.Rect
 import com.blowaway.core.gesture.GesturePlanner
@@ -8,7 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class GesturePlannerTest {
+class GesturePlannerDeviceTest {
     @Test
     fun plansSwipeUpFromNotificationCenter() {
         val planner = GesturePlanner()
