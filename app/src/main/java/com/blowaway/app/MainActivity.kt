@@ -1,4 +1,4 @@
-﻿package com.blowaway.app
+package com.blowaway.app
 
 import android.Manifest
 import android.content.Intent
@@ -199,15 +199,8 @@ private fun BlowAwayApp(
                         micPermission.launch(Manifest.permission.RECORD_AUDIO)
                     },
                     onStopLiveMonitor = viewModel::stopDebugMicMonitor,
-                    onStartCalibration = {
-                        pendingMicAction = {
-                            startService()
-                            viewModel.startCalibration()
-                        }
-                        micPermission.launch(Manifest.permission.RECORD_AUDIO)
-                    },
-                    onStopCalibration = viewModel::stopCalibration,
-                    onDebugGesture = viewModel::dispatchDebugGesture
+                    onDebugGesture = viewModel::dispatchDebugGesture,
+                    onDismissActivePopup = viewModel::dismissActivePopup
                 )
                 else -> RecordingLabScreen(
                     state = recordingLab,

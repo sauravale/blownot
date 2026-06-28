@@ -111,3 +111,43 @@ Current leave-one-clip-out estimate:
 - Ambient false positives: 2
 
 This is a much stronger candidate than the hand threshold rule, but it should be validated with more phones and real-world noise before being treated as universal.
+
+## Manual blow template workflow
+
+The annotation file is:
+
+```powershell
+records/blow_event_annotations.csv
+```
+
+For each inspected WAV, fill:
+
+- `peak_times_s`: semicolon-separated approximate midpoint/peak times, for example `0.92;2.64;4.29`.
+- `event_durations_ms`: optional semicolon-separated blow durations aligned with the peak times.
+- `usable`: set to `yes` when the row should contribute to the manual template.
+
+Peak times are treated as approximate midpoints. The template tools search/extract around those points rather than assuming sample-perfect timestamps.
+
+Build the manual spectral template:
+
+```powershell
+python tools/build_blow_template.py --records records --annotations records/blow_event_annotations.csv --out analysis/blow_template
+```
+
+Build the duration-normalized loudness envelope template:
+
+```powershell
+python tools/build_blow_envelope_template.py --records records --annotations records/blow_event_annotations.csv --out analysis/blow_template
+```
+
+Current annotated dataset:
+
+- 37 manually annotated blow events.
+- Manual log-frequency spectral template: `analysis/blow_template/manual_blow_log_frequency_template_min_max.csv`.
+- Manual loudness envelope template: `analysis/blow_template/manual_blow_loudness_envelope_template.csv`.
+
+Current interpretation:
+
+- The log-frequency spectral shape is the strongest candidate for reliable blow matching.
+- The normalized volume envelope is also similar across blows, but less distinctive than the spectral curve.
+- The detector should likely use a two-stage template check: first a 300-520 ms duration/envelope candidate, then a normalized log-frequency spectral-shape match near the event peak.

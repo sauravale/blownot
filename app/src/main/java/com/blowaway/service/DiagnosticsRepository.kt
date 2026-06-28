@@ -16,7 +16,6 @@ data class DiagnosticsState(
     val blowConfidence: Float = 0f,
     val speechConfidence: Float = 0f,
     val detectorReason: String = "",
-    val calibrationStatus: String = "Not calibrated in this session",
     val currentApplication: String = "",
     val currentNotificationKey: String = "",
     val accessibilityBounds: Rect? = null,
@@ -53,10 +52,6 @@ class DiagnosticsRepository @Inject constructor() {
                 waveform = waveform
             )
         }
-    }
-
-    fun updateCalibration(status: String) {
-        mutableDiagnostics.update { it.copy(calibrationStatus = status) }
     }
 
     fun updateNotification(packageName: String, key: String) {

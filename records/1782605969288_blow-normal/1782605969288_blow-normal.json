@@ -1,0 +1,24 @@
+{
+  "file": "1782605969288_blow-normal.wav",
+  "label": "blow-normal",
+  "startedAtMillis": 1782605969288,
+  "manufacturer": "Sony",
+  "model": "XQ-ES54",
+  "device": "XQ-ES54",
+  "sdk": 35,
+  "sampleRate": 16000,
+  "durationSeconds": 5.840,
+  "detector": {
+    "confidence": 0.000000,
+    "speechConfidence": 0.000000,
+    "noiseFloor": 0.004000,
+    "reason": "ambient",
+    "rms": 0.000047,
+    "peak": 0.000122,
+    "zeroCrossingRate": 0.303125,
+    "spectralCentroid": 2425.000000,
+    "spectralFlatness": 0.461696,
+    "frameEnergy": 0.000001,
+    "clipping": false
+  }
+}

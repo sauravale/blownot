@@ -14,6 +14,7 @@ import androidx.core.app.NotificationCompat
 import com.blowaway.core.detection.BlowDetector
 import com.blowaway.core.state.AppState
 import com.blowaway.core.state.StateMachine
+import com.blowaway.data.settings.SettingsRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +23,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -29,8 +31,8 @@ class MicrophoneForegroundService : Service() {
     @Inject lateinit var detector: BlowDetector
     @Inject lateinit var stateMachine: StateMachine
     @Inject lateinit var diagnosticsRepository: DiagnosticsRepository
-    @Inject lateinit var calibrationRepository: CalibrationRepository
     @Inject lateinit var recordingLabRepository: RecordingLabRepository
+    @Inject lateinit var settingsRepository: SettingsRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -56,18 +58,20 @@ class MicrophoneForegroundService : Service() {
                 diagnosticsRepository.updateState(state)
                 BlowAwayLog.d("service observed state=$state")
                 if (state == AppState.DebugMicMonitor) {
-                    listenUntilStateChanges(allowDismissal = false)
+                    listenUntilStateChanges(allowDismissal = false, timeoutMillis = null)
                 }
                 if (state == AppState.NotificationActive || state == AppState.ListeningForBlow) {
+                    val timeoutMillis = settingsRepository.settings.first().listeningWindowMillis.coerceIn(1_000, 10_000)
                     stateMachine.onListeningStarted()
-                    listenUntilStateChanges(allowDismissal = true)
+                    listenUntilStateChanges(allowDismissal = true, timeoutMillis = timeoutMillis)
                 }
             }
         }
     }
 
-    private suspend fun listenUntilStateChanges(allowDismissal: Boolean) {
-        BlowAwayLog.i("audio loop starting allowDismissal=$allowDismissal")
+    private suspend fun listenUntilStateChanges(allowDismissal: Boolean, timeoutMillis: Long?) {
+        val startedAt = System.currentTimeMillis()
+        BlowAwayLog.i("audio loop starting allowDismissal=$allowDismissal timeoutMillis=$timeoutMillis")
         val sampleRate = 16_000
         val frameSize = sampleRate / 50
         val minBuffer = AudioRecord.getMinBufferSize(
@@ -86,6 +90,11 @@ class MicrophoneForegroundService : Service() {
         try {
             recorder.startRecording()
             while (stateMachine.state.value == AppState.ListeningForBlow || stateMachine.state.value == AppState.DebugMicMonitor) {
+                if (timeoutMillis != null && System.currentTimeMillis() - startedAt >= timeoutMillis) {
+                    BlowAwayLog.i("audio loop timed out after ${System.currentTimeMillis() - startedAt}ms")
+                    stateMachine.onIdle()
+                    break
+                }
                 val read = recorder.read(buffer, 0, buffer.size)
                 if (read > 0) {
                     val samples = buffer.copyOf(read)
@@ -99,7 +108,6 @@ class MicrophoneForegroundService : Service() {
                         waveform = samples.take(96).map { it / Short.MAX_VALUE.toFloat() }
                     )
                     val nowMillis = System.currentTimeMillis()
-                    calibrationRepository.observe(result.features, nowMillis = nowMillis)
                     recordingLabRepository.observeSamples(
                         samples = samples,
                         sampleRate = sampleRate,
@@ -112,7 +120,7 @@ class MicrophoneForegroundService : Service() {
                     )
                     if (result.reason != "ambient" && result.reason != "below threshold") {
                         BlowAwayLog.d(
-                            "detector reason=${result.reason} trigger=${result.triggered} confidence=${"%.2f".format(result.confidence)} speech=${"%.2f".format(result.speechConfidence)} rms=${"%.3f".format(result.features.rms)} noise=${"%.3f".format(result.noiseFloor)} peak=${"%.3f".format(result.features.peak)} zcr=${"%.3f".format(result.features.zeroCrossingRate)} centroid=${"%.0f".format(result.features.spectralCentroid)} flatness=${"%.2f".format(result.features.spectralFlatness)}"
+                            "detector reason=${result.reason} trigger=${result.triggered} confidence=${"%.2f".format(result.confidence)} speech=${"%.2f".format(result.speechConfidence)} rms=${"%.3f".format(result.features.rms)} noise=${"%.3f".format(result.noiseFloor)} peak=${"%.3f".format(result.features.peak)} tmpl=${"%.2f".format(result.features.spectralTemplateScore)} zcr=${"%.3f".format(result.features.zeroCrossingRate)} centroid=${"%.0f".format(result.features.spectralCentroid)} flatness=${"%.2f".format(result.features.spectralFlatness)}"
                         )
                     }
                     if (result.triggered && allowDismissal) {

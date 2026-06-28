@@ -53,16 +53,21 @@ class BlowAccessibilityService : AccessibilityService() {
 
     fun dismissHeadsUp() {
         scope.launch {
+            if (clickLikelyDismissControl()) {
+                stateMachine.onGestureExecuted()
+                diagnosticsRepository.updateGesture("clicked dismiss control")
+                return@launch
+            }
             val settings = settingsRepository.settings.first()
             val metrics = resources.displayMetrics
             val coordinates = if (cachedBounds == null) {
-                samsungFallbackSwipe(metrics.widthPixels, metrics.heightPixels, settings.gestureDurationMillis)
+                sideFallbackSwipe(metrics.widthPixels, metrics.heightPixels, settings.gestureDurationMillis)
             } else {
                 gesturePlanner.plan(
                     GestureRequest(
-                        type = GestureType.SwipeUp,
+                        type = GestureType.SwipeLeft,
                         bounds = cachedBounds,
-                        durationMillis = settings.gestureDurationMillis.coerceIn(150, 250)
+                        durationMillis = settings.gestureDurationMillis.coerceIn(150, 260)
                     ),
                     Rect(0, 0, metrics.widthPixels, metrics.heightPixels)
                 )
@@ -96,17 +101,57 @@ class BlowAccessibilityService : AccessibilityService() {
     }
 
 
-    private fun samsungFallbackSwipe(width: Int, height: Int, durationMillis: Long): com.blowaway.core.gesture.GestureCoordinates {
+
+    private fun clickLikelyDismissControl(): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(root)
+        while (queue.isNotEmpty()) {
+            val node = queue.removeFirst()
+            val label = listOfNotNull(node.text, node.contentDescription)
+                .joinToString(" ")
+                .trim()
+                .lowercase()
+            val looksLikeDismiss = label == "dismiss" ||
+                label == "stop" ||
+                label == "done" ||
+                label == "turn off" ||
+                label.contains("dismiss alarm") ||
+                label.contains("stop alarm") ||
+                label.contains("dismiss timer") ||
+                label.contains("stop timer") ||
+                label.contains("timer done")
+            if (looksLikeDismiss) {
+                val clicked = findClickableAncestor(node)?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true
+                BlowAwayLog.i("dismiss control candidate label=$label clicked=$clicked")
+                if (clicked) return true
+            }
+            repeat(node.childCount) { index ->
+                node.getChild(index)?.let(queue::add)
+            }
+        }
+        return false
+    }
+
+    private fun findClickableAncestor(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var current: AccessibilityNodeInfo? = node
+        repeat(6) {
+            val candidate = current ?: return null
+            if (candidate.isClickable) return candidate
+            current = candidate.parent
+        }
+        return null
+    }
+
+    private fun sideFallbackSwipe(width: Int, height: Int, durationMillis: Long): com.blowaway.core.gesture.GestureCoordinates {
         val portrait = height >= width
-        val startX = width * 0.5f
-        val startY = if (portrait) height * 0.11f else height * 0.18f
-        val endY = if (portrait) 1f else height * 0.03f
+        val y = if (portrait) height * 0.11f else height * 0.18f
         return com.blowaway.core.gesture.GestureCoordinates(
-            startX = startX,
-            startY = startY,
-            endX = startX,
-            endY = endY,
-            durationMillis = durationMillis.coerceIn(180, 240)
+            startX = width * 0.90f,
+            startY = y,
+            endX = width * 0.05f,
+            endY = y,
+            durationMillis = durationMillis.coerceIn(180, 260)
         )
     }
 

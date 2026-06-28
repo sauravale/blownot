@@ -17,7 +17,8 @@ data class BlowFeatures(
     val spectralCentroid: Float,
     val spectralFlatness: Float,
     val frameEnergy: Float,
-    val clipping: Boolean
+    val clipping: Boolean,
+    val spectralTemplateScore: Float = 0f
 )
 
 data class DetectionResult(

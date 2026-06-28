@@ -1,5 +1,7 @@
 package com.blowaway.service
 
+import android.app.Notification
+import android.app.NotificationManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.NotificationListenerService.Ranking
 import android.service.notification.StatusBarNotification
@@ -29,14 +31,17 @@ class BlowNotificationListenerService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         scope.launch {
             val settings = settingsRepository.settings.first()
-            if (!settings.enabled || shouldIgnore(sbn, settings.ignoreAlarms, settings.ignoreMedia)) {
-                BlowAwayLog.d("notification ignored package=${sbn.packageName} key=${sbn.key} category=${sbn.notification.category} ongoing=${sbn.isOngoing} flags=${sbn.notification.flags}")
+            val ranking = Ranking()
+            val hasRanking = currentRanking.getRanking(sbn.key, ranking)
+            val importance = if (hasRanking) ranking.importance else 0
+            val suppressedPeek = hasRanking &&
+                ranking.suppressedVisualEffects and NotificationManager.Policy.SUPPRESSED_EFFECT_PEEK != 0
+            if (!settings.enabled || shouldIgnore(sbn, settings.ignoreAlarms, settings.ignoreMedia, importance, suppressedPeek)) {
+                BlowAwayLog.d("notification ignored package=${sbn.packageName} key=${sbn.key} category=${sbn.notification.category} importance=$importance suppressedPeek=$suppressedPeek ongoing=${sbn.isOngoing} flags=${sbn.notification.flags}")
                 return@launch
             }
             val now = System.currentTimeMillis()
-            val ranking = Ranking()
-            val importance = if (currentRanking.getRanking(sbn.key, ranking)) ranking.importance else 0
-            BlowAwayLog.i("notification accepted package=${sbn.packageName} key=${sbn.key} category=${sbn.notification.category} importance=$importance windowMs=${settings.listeningWindowMillis}")
+            BlowAwayLog.i("notification accepted package=${sbn.packageName} key=${sbn.key} category=${sbn.notification.category} importance=$importance suppressedPeek=$suppressedPeek windowMs=${settings.listeningWindowMillis}")
             activeNotificationKey = sbn.key
             notificationDao.upsert(
                 NotificationEntity(
@@ -71,15 +76,26 @@ class BlowNotificationListenerService : NotificationListenerService() {
         super.onDestroy()
     }
 
-    private fun shouldIgnore(sbn: StatusBarNotification, ignoreAlarms: Boolean, ignoreMedia: Boolean): Boolean {
+    private fun shouldIgnore(
+        sbn: StatusBarNotification,
+        ignoreAlarms: Boolean,
+        ignoreMedia: Boolean,
+        importance: Int,
+        suppressedPeek: Boolean
+    ): Boolean {
         val category = sbn.notification.category
         val flags = sbn.notification.flags
-        val persistentSystemNotification = sbn.isOngoing ||
-            flags and android.app.Notification.FLAG_ONGOING_EVENT != 0 ||
-            flags and android.app.Notification.FLAG_NO_CLEAR != 0
+        val alarmAllowed = category == Notification.CATEGORY_ALARM && !ignoreAlarms
+        val persistentSystemNotification = !alarmAllowed && (
+            sbn.isOngoing ||
+                flags and Notification.FLAG_ONGOING_EVENT != 0 ||
+                flags and Notification.FLAG_NO_CLEAR != 0
+            )
+        val notLikelyHeadsUp = importance < NotificationManager.IMPORTANCE_HIGH || suppressedPeek
         return persistentSystemNotification ||
+            notLikelyHeadsUp ||
             (sbn.packageName == "com.android.systemui" && sbn.key.contains("charging", ignoreCase = true)) ||
-            (ignoreAlarms && category == android.app.Notification.CATEGORY_ALARM) ||
-            (ignoreMedia && category == android.app.Notification.CATEGORY_TRANSPORT)
+            (ignoreAlarms && category == Notification.CATEGORY_ALARM) ||
+            (ignoreMedia && category == Notification.CATEGORY_TRANSPORT)
     }
 }

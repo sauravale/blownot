@@ -32,3 +32,12 @@ Thumbs.db
 # Codex/local agent workspace metadata
 .agents/
 .codex/
+
+# Local recording extraction scratch space
+records/New folder/
+records/New folder/**
+
+# Python generated files
+__pycache__/
+**/__pycache__/
+*.pyc

@@ -22,11 +22,15 @@ class BootReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             val settings = settingsRepository.settings.first()
             if (settings.startOnBoot && settings.foregroundServiceEnabled) {
-                val serviceIntent = Intent(context, MicrophoneForegroundService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    BlowAwayLog.w("boot autostart skipped: Android blocks background microphone foreground-service starts")
                 } else {
-                    context.startService(serviceIntent)
+                    val serviceIntent = Intent(context, MicrophoneForegroundService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
+                    }
                 }
             }
             pending.finish()
