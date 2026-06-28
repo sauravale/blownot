@@ -1,4 +1,4 @@
-package com.blowaway.service
+﻿package com.blowaway.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -126,12 +126,14 @@ class MicrophoneForegroundService : Service() {
                     if (result.triggered && allowDismissal) {
                         BlowAwayLog.i("detector triggered dismissal")
                         stateMachine.onBlowConfirmed()
-                        val dismissed = AccessibilityBridge.dismissHeadsUp()
-                        if (!dismissed) {
+                        stateMachine.onDismissalRequested()
+                        val dismissalRequested = AccessibilityBridge.dismissHeadsUp()
+                        if (dismissalRequested) {
+                            stateMachine.onCooldown()
+                            delay(2_000)
+                        } else {
                             diagnosticsRepository.updateGesture("accessibility service unavailable")
                         }
-                        stateMachine.onCooldown()
-                        delay(2_000)
                         stateMachine.onIdle()
                     }
                 } else {
@@ -165,3 +167,6 @@ class MicrophoneForegroundService : Service() {
         const val CHANNEL_ID = "blowaway_listening"
     }
 }
+
+
+

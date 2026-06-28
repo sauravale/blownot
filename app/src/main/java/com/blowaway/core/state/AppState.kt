@@ -1,4 +1,4 @@
-package com.blowaway.core.state
+﻿package com.blowaway.core.state
 
 enum class AppState {
     Idle,
@@ -6,6 +6,8 @@ enum class AppState {
     NotificationActive,
     ListeningForBlow,
     BlowConfirmed,
+    DismissalRequested,
     SwipeGestureExecuted,
     Cooldown
 }
+

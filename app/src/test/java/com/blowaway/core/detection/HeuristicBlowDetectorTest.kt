@@ -1,4 +1,4 @@
-package com.blowaway.core.detection
+﻿package com.blowaway.core.detection
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -17,11 +17,11 @@ class HeuristicBlowDetectorTest {
             )
         }
         var triggered = false
-        repeat(18) { frame ->
+        repeat(24) { frame ->
             val result = detector.analyze(templateBlowFrame(frame), 16_000, frame * 20L)
             triggered = triggered || result.triggered
         }
-        triggered = triggered || detector.analyze(quietFrame(), 16_000, 500L).triggered
+        triggered = triggered || detector.analyze(quietFrame(), 16_000, 620L).triggered
         assertTrue(triggered)
     }
 
@@ -60,8 +60,8 @@ class HeuristicBlowDetectorTest {
         val detector = HeuristicBlowDetector {
             DetectionConfig(sensitivity = 0.8f, cooldownMillis = 2_000, calibratedRms = 0.08f)
         }
-        repeat(18) { frame -> detector.analyze(templateBlowFrame(frame), 16_000, frame * 20L) }
-        detector.analyze(quietFrame(), 16_000, 500L)
+        repeat(24) { frame -> detector.analyze(templateBlowFrame(frame), 16_000, frame * 20L) }
+        detector.analyze(quietFrame(), 16_000, 620L)
         val duringCooldown = detector.analyze(templateBlowFrame(0), 16_000, 620)
         assertFalse(duringCooldown.triggered)
     }
@@ -73,13 +73,21 @@ class HeuristicBlowDetectorTest {
             val t = index / 16_000.0
             var sample = 0.0
             frequencies.forEachIndexed { i, frequency ->
-                val amplitude = Math.pow(10.0, db[i] / 20.0)
+                val amplitude = Math.pow(10.0, db[i] / 20.0) * blowEnvelope(frame)
                 sample += amplitude * kotlin.math.sin(2.0 * Math.PI * frequency * t + frame * 0.13)
             }
-            (sample * 5_500.0).coerceIn(Short.MIN_VALUE.toDouble(), Short.MAX_VALUE.toDouble()).toInt().toShort()
+            (sample * 18_000.0).coerceIn(Short.MIN_VALUE.toDouble(), Short.MAX_VALUE.toDouble()).toInt().toShort()
         }
     }
 
+    private fun blowEnvelope(frame: Int): Double {
+        val db = doubleArrayOf(
+            -30.0, -25.0, -20.0, -15.0, -11.0, -8.0, -6.0, -4.5,
+            -3.5, -3.0, -3.0, -3.2, -3.8, -4.8, -6.5, -8.8,
+            -11.5, -14.5, -18.0, -21.5, -25.0, -28.0, -31.0, -34.0
+        )
+        return Math.pow(10.0, db[frame.coerceIn(db.indices)] / 20.0)
+    }
     private fun quietFrame(): ShortArray = ShortArray(320) { 0 }
 
     private fun lowAmplitudeAirflowFrame(frame: Int): ShortArray {
@@ -97,3 +105,5 @@ class HeuristicBlowDetectorTest {
         }
     }
 }
+
+

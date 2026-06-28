@@ -1,4 +1,4 @@
-package com.blowaway.core.state
+﻿package com.blowaway.core.state
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +44,11 @@ class StateMachine @Inject constructor() {
         mutableState.value = AppState.BlowConfirmed
     }
 
+
+    fun onDismissalRequested() {
+        BlowAwayLog.i("state ${mutableState.value} -> DismissalRequested")
+        mutableState.value = AppState.DismissalRequested
+    }
     fun onGestureExecuted() {
         BlowAwayLog.i("state ${mutableState.value} -> SwipeGestureExecuted")
         mutableState.value = AppState.SwipeGestureExecuted
@@ -59,3 +64,4 @@ class StateMachine @Inject constructor() {
         mutableState.value = AppState.Idle
     }
 }
+
