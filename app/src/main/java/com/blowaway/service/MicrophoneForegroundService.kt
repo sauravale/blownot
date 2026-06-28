@@ -30,6 +30,7 @@ class MicrophoneForegroundService : Service() {
     @Inject lateinit var stateMachine: StateMachine
     @Inject lateinit var diagnosticsRepository: DiagnosticsRepository
     @Inject lateinit var calibrationRepository: CalibrationRepository
+    @Inject lateinit var recordingLabRepository: RecordingLabRepository
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -97,7 +98,18 @@ class MicrophoneForegroundService : Service() {
                         reason = result.reason,
                         waveform = samples.take(96).map { it / Short.MAX_VALUE.toFloat() }
                     )
-                    calibrationRepository.observe(result.features, nowMillis = System.currentTimeMillis())
+                    val nowMillis = System.currentTimeMillis()
+                    calibrationRepository.observe(result.features, nowMillis = nowMillis)
+                    recordingLabRepository.observeSamples(
+                        samples = samples,
+                        sampleRate = sampleRate,
+                        features = result.features,
+                        confidence = result.confidence,
+                        speechConfidence = result.speechConfidence,
+                        noiseFloor = result.noiseFloor,
+                        reason = result.reason,
+                        nowMillis = nowMillis
+                    )
                     if (result.reason != "ambient" && result.reason != "below threshold") {
                         BlowAwayLog.d(
                             "detector reason=${result.reason} trigger=${result.triggered} confidence=${"%.2f".format(result.confidence)} speech=${"%.2f".format(result.speechConfidence)} rms=${"%.3f".format(result.features.rms)} noise=${"%.3f".format(result.noiseFloor)} peak=${"%.3f".format(result.features.peak)} zcr=${"%.3f".format(result.features.zeroCrossingRate)} centroid=${"%.0f".format(result.features.spectralCentroid)} flatness=${"%.2f".format(result.features.spectralFlatness)}"

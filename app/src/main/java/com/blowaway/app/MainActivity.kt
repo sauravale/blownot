@@ -1,4 +1,4 @@
-package com.blowaway.app
+﻿package com.blowaway.app
 
 import android.Manifest
 import android.content.Intent
@@ -34,19 +34,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.blowaway.BuildConfig
 import com.blowaway.service.MicrophoneForegroundService
 import com.blowaway.ui.BlowAwayTheme
 import com.blowaway.ui.DebugScreen
 import com.blowaway.ui.MainViewModel
+import com.blowaway.ui.RecordingLabScreen
 import com.blowaway.ui.SettingsScreen
 import dagger.hilt.android.AndroidEntryPoint
+import java.io.File
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -69,11 +73,22 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 startService(intent)
                             }
-                        }
+                        },
+                        shareFile = ::shareFile
                     )
                 }
             }
         }
+    }
+
+    private fun shareFile(file: File) {
+        val uri = FileProvider.getUriForFile(this, "${BuildConfig.APPLICATION_ID}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/zip"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(intent, "Share recording lab export"))
     }
 }
 
@@ -82,10 +97,12 @@ private fun BlowAwayApp(
     openAccessibility: () -> Unit,
     openNotificationAccess: () -> Unit,
     startService: () -> Unit,
+    shareFile: (File) -> Unit,
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
     val diagnostics by viewModel.diagnostics.collectAsState()
+    val recordingLab by viewModel.recordingLab.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
     var pendingMicAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val micPermission = rememberLauncherForActivityResult(
@@ -118,6 +135,12 @@ private fun BlowAwayApp(
                     onClick = { selectedTab = 1 },
                     icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
                     label = { Text("Debug") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    icon = { Icon(Icons.Default.Mic, contentDescription = null) },
+                    label = { Text("Lab") }
                 )
             }
         }
@@ -164,10 +187,9 @@ private fun BlowAwayApp(
                 Text("Test notification")
             }
             Spacer(Modifier.height(2.dp))
-            if (selectedTab == 0) {
-                SettingsScreen(settings = settings, onUpdate = viewModel::updateSettings)
-            } else {
-                DebugScreen(
+            when (selectedTab) {
+                0 -> SettingsScreen(settings = settings, onUpdate = viewModel::updateSettings)
+                1 -> DebugScreen(
                     diagnostics = diagnostics,
                     onStartLiveMonitor = {
                         pendingMicAction = {
@@ -186,6 +208,19 @@ private fun BlowAwayApp(
                     },
                     onStopCalibration = viewModel::stopCalibration,
                     onDebugGesture = viewModel::dispatchDebugGesture
+                )
+                else -> RecordingLabScreen(
+                    state = recordingLab,
+                    onStartRecording = { label ->
+                        pendingMicAction = {
+                            startService()
+                            viewModel.startLabRecording(label)
+                        }
+                        micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                    onStopRecording = viewModel::stopLabRecording,
+                    onExport = { shareFile(viewModel.exportLabArchive()) },
+                    onClear = viewModel::clearLabRecordings
                 )
             }
         }
