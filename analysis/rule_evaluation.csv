@@ -1,0 +1,77 @@
+archive,clip,label,expected_positive,predicted_positive,outcome,triggered,candidate_ms,longest_candidate_ms,best_rms,best_peak,best_zcr,best_flatness,reason
+blowaway-recording-lab-1782606070941.zip,1782605752969_ambient-quiet.wav,ambient-quiet,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782605773410_speech.wav,speech,False,True,FP,True,80.0,80.0,0.007013,0.026276,0.707355,0.172421,airflow
+blowaway-recording-lab-1782606070941.zip,1782605793223_speech.wav,speech,False,False,TN,False,160.0,40.0,0.009398,0.038147,0.766823,0.363033,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782605824383_ambient-noisy.wav,ambient-noisy,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782605849845_ambient-noisy.wav,ambient-noisy,False,False,TN,False,40.0,40.0,0.003024,0.017151,0.378717,0.467695,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782605880860_ambient-noisy.wav,ambient-noisy,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782605909168_speech.wav,speech,False,False,TN,False,240.0,40.0,0.019683,0.069977,0.729264,0.260229,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782605930550_ambient-noisy.wav,ambient-noisy,False,True,FP,True,120.0,80.0,0.028254,0.123932,0.713615,0.200576,airflow
+blowaway-recording-lab-1782606070941.zip,1782605956239_blow-close.wav,blow-close,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782605965032_blow-close.wav,blow-close,True,True,TP,True,360.0,320.0,0.023905,0.109253,0.583725,0.469598,airflow
+blowaway-recording-lab-1782606070941.zip,1782605969288_blow-normal.wav,blow-normal,True,False,FN,False,80.0,40.0,0.009914,0.03894,0.295775,0.42815,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782605976563_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782605981189_blow-far.wav,blow-far,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782606053780_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606070941.zip,1782606063167_failed-blow.wav,failed-blow,True,False,FN,False,80.0,40.0,0.008476,0.039429,0.446009,0.223421,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658417572790_ambient-quiet.wav,ambient-quiet,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658417858145_ambient-quiet.wav,ambient-quiet,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658418424467_speech.wav,speech,False,False,TN,False,40.0,40.0,0.003623,0.012024,0.624413,0.446516,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658418437628_speech.wav,speech,False,True,FP,True,240.0,80.0,0.003989,0.017578,0.716745,0.407724,airflow
+blowaway-recording-lab-1782606147375.zip,1658418467838_ambient-noisy.wav,ambient-noisy,False,False,TN,False,40.0,40.0,0.020096,0.09375,0.176839,0.209689,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658418493661_ambient-noisy.wav,ambient-noisy,False,True,FP,True,480.0,120.0,0.003359,0.010925,0.300469,0.655826,airflow
+blowaway-recording-lab-1782606147375.zip,1658418526608_ambient-noisy.wav,ambient-noisy,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658418552986_speech.wav,speech,False,True,FP,True,800.0,120.0,0.008993,0.036987,0.694836,0.708692,airflow
+blowaway-recording-lab-1782606147375.zip,1658418573592_ambient-noisy.wav,ambient-noisy,False,True,FP,True,680.0,160.0,0.007814,0.029999,0.723005,0.695323,airflow
+blowaway-recording-lab-1782606147375.zip,1658418647612_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658418658392_blow-close.wav,blow-close,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658418667764_blow-far.wav,blow-far,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658418678154_blow-far.wav,blow-far,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782606147375.zip,1658418686899_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608483847.zip,1782608387727_ambient-noisy.wav,ambient-noisy,False,False,TN,False,200.0,40.0,0.004573,0.013977,0.350548,0.517599,candidate too short
+blowaway-recording-lab-1782608483847.zip,1782608426130_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608483847.zip,1782608432269_failed-blow.wav,failed-blow,True,True,TP,True,560.0,200.0,0.080869,0.419464,0.707355,0.586267,airflow
+blowaway-recording-lab-1782608483847.zip,1782608436951_failed-blow.wav,failed-blow,True,True,TP,True,600.0,320.0,0.006658,0.031189,0.513302,0.783548,airflow
+blowaway-recording-lab-1782608483847.zip,1782608441920_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608483847.zip,1782608453936_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608483847.zip,1782608460487_failed-blow.wav,failed-blow,True,True,TP,True,80.0,80.0,0.009046,0.028687,0.270736,0.255002,airflow
+blowaway-recording-lab-1782608483847.zip,1782608469432_failed-blow.wav,failed-blow,True,True,TP,True,960.0,400.0,0.011552,0.042542,0.696401,0.773845,airflow
+blowaway-recording-lab-1782608496395.zip,1782608144876_failed-blow.wav,failed-blow,True,False,FN,False,40.0,40.0,0.009897,0.043091,0.323944,0.402981,candidate too short
+blowaway-recording-lab-1782608496395.zip,1782608147589_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608496395.zip,1782608150662_failed-blow.wav,failed-blow,True,True,TP,True,320.0,160.0,0.007927,0.028625,0.719875,0.379471,airflow
+blowaway-recording-lab-1782608496395.zip,1782608160173_failed-blow.wav,failed-blow,True,False,FN,False,120.0,40.0,0.004707,0.016205,0.737089,0.251251,candidate too short
+blowaway-recording-lab-1782608496395.zip,1782608163117_failed-blow.wav,failed-blow,True,True,TP,True,240.0,160.0,0.014414,0.052277,0.497653,0.567776,airflow
+blowaway-recording-lab-1782608496395.zip,1782608178054_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608496395.zip,1782608187004_failed-blow.wav,failed-blow,True,True,TP,True,440.0,240.0,0.06112,0.283783,0.370892,0.476156,loud airflow
+blowaway-recording-lab-1782608496395.zip,1782608191941_failed-blow.wav,failed-blow,True,True,TP,True,120.0,120.0,0.095717,0.6987,0.419405,0.559241,airflow
+blowaway-recording-lab-1782608496395.zip,1782608203595_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608496395.zip,1782608212532_failed-blow.wav,failed-blow,True,True,TP,True,720.0,160.0,0.048773,0.126648,0.586854,0.615143,airflow
+blowaway-recording-lab-1782608496395.zip,1782608223559_ambient-quiet.wav,ambient-quiet,False,False,TN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608496395.zip,1782608308211_ambient-noisy.wav,ambient-noisy,False,True,FP,True,840.0,80.0,0.007885,0.0289,0.668232,0.417068,airflow
+blowaway-recording-lab-1782608496395.zip,1782608331601_ambient-noisy.wav,ambient-noisy,False,True,FP,True,560.0,80.0,0.010248,0.030548,0.755869,0.451226,airflow
+blowaway-recording-lab-1782608496395.zip,1782608355546_ambient-noisy.wav,ambient-noisy,False,False,TN,False,280.0,40.0,0.006857,0.029358,0.704225,0.31006,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608588636_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608596442_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608600090_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608602965_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608605517_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608608865_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608611657_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608614338_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608616573_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608623438.zip,1782608618931_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608645573_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608649116_blow-normal.wav,blow-normal,True,False,FN,False,40.0,40.0,0.003265,0.011047,0.195618,0.192665,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608657180_blow-normal.wav,blow-normal,True,True,TP,True,120.0,80.0,0.013543,0.121124,0.668232,0.414474,airflow
+blowaway-recording-lab-1782608692656.zip,1782608662652_blow-normal.wav,blow-normal,True,False,FN,False,40.0,40.0,0.009993,0.029175,0.325509,0.648723,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608664944_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608667017_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608668892_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608670794_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608672740_blow-normal.wav,blow-normal,True,True,TP,True,120.0,80.0,0.003935,0.015381,0.500782,0.427829,airflow
+blowaway-recording-lab-1782608692656.zip,1782608677735_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608679544_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608681403_blow-normal.wav,blow-normal,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608683432_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608687455_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
+blowaway-recording-lab-1782608692656.zip,1782608689251_failed-blow.wav,failed-blow,True,False,FN,False,0.0,0.0,0.0,0.0,0.0,0.0,candidate too short
