@@ -12,11 +12,16 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.blowaway.core.detection.BlowDetector
+import com.blowaway.core.detection.BlowFeatures
+import com.blowaway.core.detection.DetectionResult
 import com.blowaway.core.state.AppState
 import com.blowaway.core.state.StateMachine
 import com.blowaway.data.settings.SettingsRepository
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.sqrt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -71,6 +76,8 @@ class MicrophoneForegroundService : Service() {
 
     private suspend fun listenUntilStateChanges(allowDismissal: Boolean, timeoutMillis: Long?) {
         val startedAt = System.currentTimeMillis()
+        val session = if (allowDismissal) ListeningSession(startedAt) else null
+        detector.reset()
         BlowAwayLog.i("audio loop starting allowDismissal=$allowDismissal timeoutMillis=$timeoutMillis")
         val sampleRate = 16_000
         val frameSize = sampleRate / 50
@@ -90,15 +97,16 @@ class MicrophoneForegroundService : Service() {
         try {
             recorder.startRecording()
             while (stateMachine.state.value == AppState.ListeningForBlow || stateMachine.state.value == AppState.DebugMicMonitor) {
-                if (timeoutMillis != null && System.currentTimeMillis() - startedAt >= timeoutMillis) {
-                    BlowAwayLog.i("audio loop timed out after ${System.currentTimeMillis() - startedAt}ms")
+                val nowMillis = System.currentTimeMillis()
+                if (timeoutMillis != null && nowMillis - startedAt >= timeoutMillis) {
+                    BlowAwayLog.i("audio loop timed out after ${nowMillis - startedAt}ms")
                     stateMachine.onIdle()
                     break
                 }
                 val read = recorder.read(buffer, 0, buffer.size)
                 if (read > 0) {
                     val samples = buffer.copyOf(read)
-                    val result = detector.analyze(samples, sampleRate, System.currentTimeMillis())
+                    val result = analyzeFrame(samples, sampleRate, nowMillis, session)
                     diagnosticsRepository.updateAudio(
                         features = result.features,
                         confidence = result.confidence,
@@ -107,7 +115,6 @@ class MicrophoneForegroundService : Service() {
                         reason = result.reason,
                         waveform = samples.take(96).map { it / Short.MAX_VALUE.toFloat() }
                     )
-                    val nowMillis = System.currentTimeMillis()
                     recordingLabRepository.observeSamples(
                         samples = samples,
                         sampleRate = sampleRate,
@@ -118,7 +125,7 @@ class MicrophoneForegroundService : Service() {
                         reason = result.reason,
                         nowMillis = nowMillis
                     )
-                    if (result.reason != "ambient" && result.reason != "below threshold") {
+                    if (shouldLogResult(result)) {
                         BlowAwayLog.d(
                             "detector reason=${result.reason} trigger=${result.triggered} confidence=${"%.2f".format(result.confidence)} speech=${"%.2f".format(result.speechConfidence)} rms=${"%.3f".format(result.features.rms)} noise=${"%.3f".format(result.noiseFloor)} peak=${"%.3f".format(result.features.peak)} tmpl=${"%.2f".format(result.features.spectralTemplateScore)} zcr=${"%.3f".format(result.features.zeroCrossingRate)} centroid=${"%.0f".format(result.features.spectralCentroid)} flatness=${"%.2f".format(result.features.spectralFlatness)}"
                         )
@@ -142,9 +149,71 @@ class MicrophoneForegroundService : Service() {
             }
         } finally {
             BlowAwayLog.i("audio loop stopping state=${stateMachine.state.value}")
+            detector.reset()
             recorder.stop()
             recorder.release()
         }
+    }
+
+    private fun analyzeFrame(
+        samples: ShortArray,
+        sampleRate: Int,
+        nowMillis: Long,
+        session: ListeningSession?
+    ): DetectionResult {
+        if (session == null) {
+            return detector.analyze(samples, sampleRate, nowMillis)
+        }
+
+        val basicFeatures = extractBasicFeatures(samples)
+        val decision = session.onFrame(basicFeatures, nowMillis)
+        if (decision.resetDetector) {
+            detector.reset()
+        }
+        if (!decision.analyze) {
+            return DetectionResult(
+                triggered = false,
+                confidence = 0f,
+                speechConfidence = 0f,
+                noiseFloor = decision.alertRms,
+                features = basicFeatures,
+                reason = decision.reason
+            )
+        }
+        return detector.analyze(samples, sampleRate, nowMillis)
+    }
+
+    private fun shouldLogResult(result: DetectionResult): Boolean {
+        return result.reason != "ambient" && result.reason != "below threshold"
+    }
+
+    private fun extractBasicFeatures(samples: ShortArray): BlowFeatures {
+        if (samples.isEmpty()) {
+            return BlowFeatures(0f, 0f, 0f, 0f, 0f, 0f, clipping = false)
+        }
+        var energy = 0.0
+        var peak = 0f
+        var crossings = 0
+        var previous = samples.first()
+        samples.forEach { sample ->
+            val normalized = sample / Short.MAX_VALUE.toFloat()
+            energy += normalized * normalized
+            peak = max(peak, abs(normalized))
+            if ((sample >= 0 && previous < 0) || (sample < 0 && previous >= 0)) {
+                crossings += 1
+            }
+            previous = sample
+        }
+        return BlowFeatures(
+            rms = sqrt(energy / samples.size).toFloat(),
+            peak = peak,
+            zeroCrossingRate = crossings / samples.size.toFloat(),
+            spectralCentroid = 0f,
+            spectralFlatness = 0f,
+            frameEnergy = energy.toFloat(),
+            clipping = peak > 0.97f,
+            spectralTemplateScore = 0f
+        )
     }
 
     private fun createChannel() {
@@ -163,10 +232,109 @@ class MicrophoneForegroundService : Service() {
             .build()
     }
 
+    private class ListeningSession(private val startedAt: Long) {
+        private var phase: Phase = Phase.Settling
+        private var alertRmsSum = 0f
+        private var alertPeak = 0f
+        private var alertFrames = 0
+        private var alertRms = 0.0012f
+        private var recentRms = 0.0012f
+        private var analysisWindowUntil = Long.MIN_VALUE
+        private var armedLogged = false
+        private var lastSessionReason = ""
+
+        fun onFrame(features: BlowFeatures, nowMillis: Long): GateDecision {
+            val elapsed = nowMillis - startedAt
+            if (elapsed < SETTLING_MILLIS) {
+                updateRecent(features)
+                return decision(false, true, "session: settling", features)
+            }
+
+            if (elapsed < SETTLING_MILLIS + CALIBRATION_MILLIS) {
+                phase = Phase.CalibratingAlertBed
+                collectAlertBed(features)
+                updateRecent(features)
+                return decision(false, true, "session: calibrating alert bed", features)
+            }
+
+            if (phase != Phase.Armed) {
+                phase = Phase.Armed
+                alertRms = (alertRmsSum / alertFrames.coerceAtLeast(1)).coerceAtLeast(0.0008f)
+                recentRms = alertRms
+                if (!armedLogged) {
+                    armedLogged = true
+                    BlowAwayLog.i("listening session armed alertRms=${"%.4f".format(alertRms)} alertPeak=${"%.4f".format(alertPeak)}")
+                }
+                return decision(false, true, "session: armed", features)
+            }
+
+            val transient = looksLikeTransientAboveAlertBed(features)
+            if (transient && nowMillis > analysisWindowUntil) {
+                analysisWindowUntil = nowMillis + ANALYSIS_WINDOW_MILLIS
+                updateRecent(features)
+                return decision(true, true, "session: transient analysis", features)
+            }
+
+            updateRecent(features)
+            if (nowMillis <= analysisWindowUntil) {
+                return decision(true, false, "session: transient analysis", features)
+            }
+
+            val reason = if (features.rms > max(alertRms * 1.20f, 0.0025f)) {
+                "session: ongoing alert sound"
+            } else {
+                "session: armed"
+            }
+            return decision(false, true, reason, features)
+        }
+
+        private fun collectAlertBed(features: BlowFeatures) {
+            alertRmsSum += features.rms
+            alertPeak = max(alertPeak, features.peak)
+            alertFrames += 1
+        }
+
+        private fun looksLikeTransientAboveAlertBed(features: BlowFeatures): Boolean {
+            val rmsGate = max(max(alertRms * 1.55f, recentRms * 1.45f), alertRms + 0.0025f).coerceAtLeast(0.0030f)
+            val peakGate = max(max(alertPeak * 1.25f, 0.0045f), alertPeak + 0.0035f)
+            val energeticRise = features.rms >= rmsGate && features.peak >= peakGate
+            val airflowLike = features.zeroCrossingRate >= 0.12f || features.peak >= max(alertPeak * 1.9f, 0.010f)
+            return energeticRise && airflowLike
+        }
+
+        private fun updateRecent(features: BlowFeatures) {
+            recentRms = recentRms * 0.90f + features.rms * 0.10f
+        }
+
+        private fun decision(analyze: Boolean, resetDetector: Boolean, reason: String, features: BlowFeatures): GateDecision {
+            if (reason != lastSessionReason) {
+                BlowAwayLog.d("listening session reason=$reason rms=${"%.3f".format(features.rms)} alert=${"%.3f".format(alertRms)} peak=${"%.3f".format(features.peak)} zcr=${"%.3f".format(features.zeroCrossingRate)}")
+                lastSessionReason = reason
+            }
+            return GateDecision(analyze, resetDetector, reason, alertRms)
+        }
+
+        private enum class Phase {
+            Settling,
+            CalibratingAlertBed,
+            Armed
+        }
+
+        companion object {
+            private const val SETTLING_MILLIS = 650L
+            private const val CALIBRATION_MILLIS = 450L
+            private const val ANALYSIS_WINDOW_MILLIS = 900L
+        }
+    }
+
+    private data class GateDecision(
+        val analyze: Boolean,
+        val resetDetector: Boolean,
+        val reason: String,
+        val alertRms: Float
+    )
+
     private companion object {
         const val CHANNEL_ID = "blowaway_listening"
     }
 }
-
-
-

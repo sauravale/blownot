@@ -15,6 +15,11 @@ class HeuristicBlowDetector(
     private var detectorState: DetectorState = DetectorState.Idle
     private var smoothedConfidence = 0f
 
+    override fun reset() {
+        detectorState = DetectorState.Idle
+        smoothedConfidence = 0f
+    }
+
     override fun analyze(samples: ShortArray, sampleRate: Int, nowMillis: Long): DetectionResult {
         val config = configProvider()
         val features = extractFeatures(samples, sampleRate)
@@ -469,4 +474,5 @@ class HeuristicBlowDetector(
         )
     }
 }
+
 
