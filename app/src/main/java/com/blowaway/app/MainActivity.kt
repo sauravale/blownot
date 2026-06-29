@@ -9,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -104,6 +106,7 @@ private fun BlowAwayApp(
     val diagnostics by viewModel.diagnostics.collectAsState()
     val recordingLab by viewModel.recordingLab.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
+    var debugUnlocked by remember { mutableStateOf(false) }
     var pendingMicAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val micPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -123,25 +126,27 @@ private fun BlowAwayApp(
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                    label = { Text("Settings") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                    label = { Text("Debug") }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    icon = { Icon(Icons.Default.Mic, contentDescription = null) },
-                    label = { Text("Lab") }
-                )
+            if (debugUnlocked) {
+                NavigationBar {
+                    NavigationBarItem(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                        label = { Text("Settings") }
+                    )
+                    NavigationBarItem(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        icon = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                        label = { Text("Debug") }
+                    )
+                    NavigationBarItem(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        icon = { Icon(Icons.Default.Mic, contentDescription = null) },
+                        label = { Text("Lab") }
+                    )
+                }
             }
         }
     ) { padding ->
@@ -152,7 +157,16 @@ private fun BlowAwayApp(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            Text("BlowAway", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                "BlowAway",
+                modifier = Modifier.pointerInput(Unit) {
+                    detectTapGestures(onLongPress = {
+                        debugUnlocked = !debugUnlocked
+                        selectedTab = 0
+                    })
+                },
+                style = MaterialTheme.typography.headlineMedium
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(onClick = openAccessibility, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.Mic, contentDescription = null)
@@ -187,12 +201,10 @@ private fun BlowAwayApp(
                 Text("Test notification")
             }
             Spacer(Modifier.height(2.dp))
-            when (selectedTab) {
+            when (if (debugUnlocked) selectedTab else 0) {
                 0 -> SettingsScreen(settings = settings, onUpdate = viewModel::updateSettings)
                 1 -> DebugScreen(
                     diagnostics = diagnostics,
-                    settings = settings,
-                    onUpdateSettings = viewModel::updateSettings,
                     onStartLiveMonitor = {
                         pendingMicAction = {
                             startService()

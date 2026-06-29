@@ -74,8 +74,8 @@ class MicrophoneForegroundService : Service() {
                     listenUntilStateChanges(
                         allowDismissal = true,
                         timeoutMillis = timeoutMillis,
-                        settlingMillis = settings.startupSettlingMillis.coerceIn(0, 1_000),
-                        calibrationMillis = settings.startupCalibrationMillis.coerceIn(0, 1_000)
+                        settlingMillis = 0,
+                        calibrationMillis = 0
                     )
                 }
             }
