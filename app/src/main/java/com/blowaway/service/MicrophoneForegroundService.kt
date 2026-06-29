@@ -21,6 +21,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sqrt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -98,8 +99,7 @@ class MicrophoneForegroundService : Service() {
             recorder.startRecording()
             while (stateMachine.state.value == AppState.ListeningForBlow || stateMachine.state.value == AppState.DebugMicMonitor) {
                 val nowMillis = System.currentTimeMillis()
-                if (timeoutMillis != null && nowMillis - startedAt >= timeoutMillis) {
-                    BlowAwayLog.i("audio loop timed out after ${nowMillis - startedAt}ms")
+                if (shouldStopListening(allowDismissal, startedAt, nowMillis, timeoutMillis)) {
                     stateMachine.onIdle()
                     break
                 }
@@ -153,6 +153,26 @@ class MicrophoneForegroundService : Service() {
             recorder.stop()
             recorder.release()
         }
+    }
+
+    private fun shouldStopListening(
+        allowDismissal: Boolean,
+        startedAt: Long,
+        nowMillis: Long,
+        timeoutMillis: Long?
+    ): Boolean {
+        if (!allowDismissal || timeoutMillis == null) return false
+        val elapsed = nowMillis - startedAt
+        val headsUpVisible = AccessibilityBridge.hasVisibleHeadsUp(nowMillis, HEADS_UP_VISIBILITY_GRACE_MILLIS)
+        if (elapsed >= HARD_LISTENING_CAP_MILLIS) {
+            BlowAwayLog.i("audio loop hard timed out after ${elapsed}ms headsUpVisible=$headsUpVisible")
+            return true
+        }
+        if (elapsed >= timeoutMillis && !headsUpVisible) {
+            BlowAwayLog.i("audio loop stopping after ${elapsed}ms because heads-up is no longer visible")
+            return true
+        }
+        return false
     }
 
     private fun analyzeFrame(
@@ -236,6 +256,7 @@ class MicrophoneForegroundService : Service() {
         private var phase: Phase = Phase.Settling
         private var alertRmsSum = 0f
         private var alertPeak = 0f
+        private var alertPeakSum = 0f
         private var alertFrames = 0
         private var alertRms = 0.0012f
         private var recentRms = 0.0012f
@@ -260,6 +281,8 @@ class MicrophoneForegroundService : Service() {
             if (phase != Phase.Armed) {
                 phase = Phase.Armed
                 alertRms = (alertRmsSum / alertFrames.coerceAtLeast(1)).coerceAtLeast(0.0008f)
+                val averagePeak = alertPeakSum / alertFrames.coerceAtLeast(1)
+                alertPeak = min(alertPeak, max(averagePeak * 2.2f, 0.006f))
                 recentRms = alertRms
                 if (!armedLogged) {
                     armedLogged = true
@@ -291,14 +314,15 @@ class MicrophoneForegroundService : Service() {
         private fun collectAlertBed(features: BlowFeatures) {
             alertRmsSum += features.rms
             alertPeak = max(alertPeak, features.peak)
+            alertPeakSum += features.peak
             alertFrames += 1
         }
 
         private fun looksLikeTransientAboveAlertBed(features: BlowFeatures): Boolean {
-            val rmsGate = max(max(alertRms * 1.55f, recentRms * 1.45f), alertRms + 0.0025f).coerceAtLeast(0.0030f)
-            val peakGate = max(max(alertPeak * 1.25f, 0.0045f), alertPeak + 0.0035f)
+            val rmsGate = max(max(alertRms * 1.30f, recentRms * 1.25f), alertRms + 0.0015f).coerceAtLeast(0.0025f)
+            val peakGate = max(max(alertPeak * 1.10f, 0.0060f), alertPeak + 0.0020f)
             val energeticRise = features.rms >= rmsGate && features.peak >= peakGate
-            val airflowLike = features.zeroCrossingRate >= 0.12f || features.peak >= max(alertPeak * 1.9f, 0.010f)
+            val airflowLike = features.zeroCrossingRate >= 0.10f || features.peak >= max(alertPeak * 1.35f, 0.008f)
             return energeticRise && airflowLike
         }
 
@@ -336,5 +360,11 @@ class MicrophoneForegroundService : Service() {
 
     private companion object {
         const val CHANNEL_ID = "blowaway_listening"
+        const val HEADS_UP_VISIBILITY_GRACE_MILLIS = 900L
+        const val HARD_LISTENING_CAP_MILLIS = 12_000L
     }
 }
+
+
+
+

@@ -1,4 +1,4 @@
-package com.blowaway.service
+﻿package com.blowaway.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
@@ -29,6 +29,7 @@ class BlowAccessibilityService : AccessibilityService() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var cachedBounds: Rect? = null
+    private var cachedBoundsAtMillis: Long = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -37,6 +38,9 @@ class BlowAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         cachedBounds = rootInActiveWindow?.let(::findLikelyNotificationBounds)
+        if (cachedBounds != null) {
+            cachedBoundsAtMillis = System.currentTimeMillis()
+        }
         diagnosticsRepository.updateBounds(cachedBounds)
         if (cachedBounds != null) {
             BlowAwayLog.d("accessibility bounds cached=$cachedBounds event=${event?.eventType}")
@@ -49,6 +53,11 @@ class BlowAccessibilityService : AccessibilityService() {
         AccessibilityBridge.detach(this)
         scope.cancel()
         super.onDestroy()
+    }
+
+    fun hasVisibleHeadsUp(nowMillis: Long, maxAgeMillis: Long): Boolean {
+        val bounds = cachedBounds ?: return false
+        return !bounds.isEmpty && nowMillis - cachedBoundsAtMillis <= maxAgeMillis
     }
 
     fun dismissHeadsUp() {

@@ -1,4 +1,4 @@
-package com.blowaway.service
+﻿package com.blowaway.service
 
 import java.lang.ref.WeakReference
 
@@ -26,6 +26,10 @@ object AccessibilityBridge {
         BlowAwayLog.i("dismiss requested via accessibility bridge")
         service.dismissHeadsUp()
         return true
+    }
+
+    fun hasVisibleHeadsUp(nowMillis: Long = System.currentTimeMillis(), maxAgeMillis: Long = 800): Boolean {
+        return serviceReference?.get()?.hasVisibleHeadsUp(nowMillis, maxAgeMillis) == true
     }
 
     fun dispatchDebugGesture(kind: String): Boolean {
