@@ -1,4 +1,4 @@
-﻿package com.blowaway.core.detection
+package com.blowaway.core.detection
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -53,6 +53,32 @@ class HeuristicBlowDetectorTest {
             val result = detector.analyze(lowAmplitudeAirflowFrame(frame), 16_000, frame * 20L)
             triggered = triggered || result.triggered
         }
+        assertFalse(triggered)
+    }
+
+    @Test
+    fun confirmsShortTemplateShapedBlowAfterCandidateEnds() {
+        val detector = HeuristicBlowDetector {
+            DetectionConfig(sensitivity = 0.8f, cooldownMillis = 2_000, calibratedRms = 0.08f)
+        }
+        var triggered = false
+        repeat(10) { frame ->
+            triggered = triggered || detector.analyze(templateBlowFrame(frame + 5), 16_000, frame * 20L).triggered
+        }
+        triggered = triggered || detector.analyze(quietFrame(), 16_000, 300L).triggered
+        assertTrue(triggered)
+    }
+
+    @Test
+    fun rejectsSustainedTemplateShapedAirflow() {
+        val detector = HeuristicBlowDetector {
+            DetectionConfig(sensitivity = 0.8f, cooldownMillis = 2_000, calibratedRms = 0.08f)
+        }
+        var triggered = false
+        repeat(50) { frame ->
+            triggered = triggered || detector.analyze(templateBlowFrame(12), 16_000, frame * 20L).triggered
+        }
+        triggered = triggered || detector.analyze(quietFrame(), 16_000, 1_100L).triggered
         assertFalse(triggered)
     }
     @Test

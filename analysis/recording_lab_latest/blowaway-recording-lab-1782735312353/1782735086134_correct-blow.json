@@ -1,0 +1,28 @@
+{
+  "file": "1782735086134_correct-blow.wav",
+  "featuresFile": "1782735086134_correct-blow.features.csv",
+  "label": "correct-blow",
+  "startedAtMillis": 1782735086134,
+  "manufacturer": "motorola",
+  "model": "moto g13",
+  "device": "penangf",
+  "sdk": 33,
+  "sampleRate": 16000,
+  "durationSeconds": 1.320,
+  "featureFrameCount": 66,
+  "detector": {
+    "triggered": false,
+    "confidence": 0.032592,
+    "speechConfidence": 0.000000,
+    "noiseFloor": 0.000600,
+    "reason": "ambient",
+    "rms": 0.000384,
+    "peak": 0.001099,
+    "zeroCrossingRate": 0.290625,
+    "spectralCentroid": 540.105896,
+    "spectralFlatness": 0.279281,
+    "frameEnergy": 0.000047,
+    "spectralTemplateScore": 0.314748,
+    "clipping": false
+  }
+}

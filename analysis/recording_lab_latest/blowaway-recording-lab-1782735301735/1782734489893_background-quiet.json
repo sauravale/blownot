@@ -1,0 +1,28 @@
+{
+  "file": "1782734489893_background-quiet.wav",
+  "featuresFile": "1782734489893_background-quiet.features.csv",
+  "label": "background-quiet",
+  "startedAtMillis": 1782734489893,
+  "manufacturer": "Sony",
+  "model": "XQ-ES54",
+  "device": "XQ-ES54",
+  "sdk": 35,
+  "sampleRate": 16000,
+  "durationSeconds": 6.120,
+  "featureFrameCount": 306,
+  "detector": {
+    "triggered": false,
+    "confidence": 0.000003,
+    "speechConfidence": 0.000000,
+    "noiseFloor": 0.000600,
+    "reason": "ambient",
+    "rms": 0.000049,
+    "peak": 0.000122,
+    "zeroCrossingRate": 0.368750,
+    "spectralCentroid": 1078.177490,
+    "spectralFlatness": 0.651834,
+    "frameEnergy": 0.000001,
+    "spectralTemplateScore": 0.112941,
+    "clipping": false
+  }
+}

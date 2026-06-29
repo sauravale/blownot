@@ -1,0 +1,28 @@
+{
+  "file": "1782734994162_speech.wav",
+  "featuresFile": "1782734994162_speech.features.csv",
+  "label": "speech",
+  "startedAtMillis": 1782734994162,
+  "manufacturer": "motorola",
+  "model": "moto g13",
+  "device": "penangf",
+  "sdk": 33,
+  "sampleRate": 16000,
+  "durationSeconds": 10.420,
+  "featureFrameCount": 521,
+  "detector": {
+    "triggered": false,
+    "confidence": 0.572979,
+    "speechConfidence": 0.807892,
+    "noiseFloor": 0.000894,
+    "reason": "candidate: spectral mismatch",
+    "rms": 0.035585,
+    "peak": 0.072329,
+    "zeroCrossingRate": 0.043750,
+    "spectralCentroid": 314.401978,
+    "spectralFlatness": 0.004872,
+    "frameEnergy": 0.405213,
+    "spectralTemplateScore": 0.531888,
+    "clipping": false
+  }
+}

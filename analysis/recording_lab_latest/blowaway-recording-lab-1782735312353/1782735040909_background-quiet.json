@@ -1,0 +1,28 @@
+{
+  "file": "1782735040909_background-quiet.wav",
+  "featuresFile": "1782735040909_background-quiet.features.csv",
+  "label": "background-quiet",
+  "startedAtMillis": 1782735040909,
+  "manufacturer": "motorola",
+  "model": "moto g13",
+  "device": "penangf",
+  "sdk": 33,
+  "sampleRate": 16000,
+  "durationSeconds": 13.060,
+  "featureFrameCount": 653,
+  "detector": {
+    "triggered": false,
+    "confidence": 0.305566,
+    "speechConfidence": 0.431823,
+    "noiseFloor": 0.000780,
+    "reason": "candidate: collecting",
+    "rms": 0.001347,
+    "peak": 0.003449,
+    "zeroCrossingRate": 0.184375,
+    "spectralCentroid": 151.848053,
+    "spectralFlatness": 0.050985,
+    "frameEnergy": 0.000581,
+    "spectralTemplateScore": 0.547484,
+    "clipping": false
+  }
+}

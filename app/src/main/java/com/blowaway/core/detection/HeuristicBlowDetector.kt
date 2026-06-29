@@ -1,4 +1,4 @@
-﻿package com.blowaway.core.detection
+package com.blowaway.core.detection
 
 import kotlin.math.abs
 import kotlin.math.cos
@@ -124,7 +124,7 @@ class HeuristicBlowDetector(
 
     private fun isEventFrame(features: BlowFeatures, gates: Gates): Boolean {
         val energetic = features.rms >= gates.startGate && features.peak >= gates.peakGate
-        val templateLift = features.spectralTemplateScore >= 0.60f &&
+        val templateLift = features.spectralTemplateScore >= 0.58f &&
             features.rms >= max(noiseFloor * 2.35f, 0.0020f) &&
             features.peak >= max(noiseFloor * 3.0f, 0.0030f)
         return energetic || templateLift
@@ -154,8 +154,8 @@ class HeuristicBlowDetector(
         if (segment.frames == 0) return SegmentDecision(false, 0f, "candidate: empty")
         val duration = segment.durationMillis
         val sensitivityOffset = (config.sensitivity - 0.62f).coerceIn(-0.35f, 0.35f)
-        val minDuration = (250L - (sensitivityOffset * 45f).toLong()).coerceIn(220L, 280L)
-        val maxDuration = min(config.maximumDurationMillis.coerceAtMost(700L), (620L + (sensitivityOffset * 60f).toLong()).coerceIn(560L, 680L))
+        val minDuration = (190L - (sensitivityOffset * 35f).toLong()).coerceIn(160L, 220L)
+        val maxDuration = min(config.maximumDurationMillis.coerceAtMost(620L), (560L + (sensitivityOffset * 45f).toLong()).coerceIn(520L, 620L))
         val spectralScore = segment.peakWeightedTemplateScore
         val envelopeScore = envelopeScore(segment.rmsValues)
         val activeRatio = segment.activeFrames / segment.frames.toFloat()
@@ -167,11 +167,11 @@ class HeuristicBlowDetector(
             segment.peak >= max(noiseFloor * 6.0f, 0.0070f)
         val riseOk = dynamicRange >= max(noiseFloor * 2.0f, 0.0025f)
         val durationOk = duration in minDuration..maxDuration
-        val spectralOk = spectralScore >= (0.62f - sensitivityOffset * 0.05f) && segment.maxTemplateScore >= 0.68f
-        val envelopeOk = envelopeScore >= (0.52f - sensitivityOffset * 0.05f)
+        val spectralOk = spectralScore >= (0.56f - sensitivityOffset * 0.04f) && segment.maxTemplateScore >= 0.68f
+        val envelopeOk = envelopeScore >= (0.40f - sensitivityOffset * 0.04f)
         val toneLike = duration > 640L && avgFlatness < 0.018f && avgZcr < 0.075f && spectralScore < 0.58f && envelopeScore < 0.56f
-        val speechOnly = speechRatio > 0.82f && spectralScore < 0.66f && envelopeScore < 0.68f
-        val activeEnough = activeRatio >= 0.30f
+        val speechOnly = (speechRatio > 0.30f && segment.maxRms < 0.08f) || (speechRatio > 0.72f && spectralScore < 0.66f && envelopeScore < 0.68f)
+        val activeEnough = activeRatio >= 0.24f
         val triggered = durationOk && energyOk && riseOk && spectralOk && envelopeOk && !speechOnly && activeEnough
         val confidence = (
             spectralScore * 0.42f +
@@ -424,7 +424,7 @@ class HeuristicBlowDetector(
         const val FRAME_MILLIS = 20L
         const val MIN_EVENT_MILLIS = 220L
         const val MAX_EVENT_MILLIS = 760L
-        const val QUIET_GAP_MILLIS = 100L
+        const val QUIET_GAP_MILLIS = 80L
         const val SHORT_REFRACTORY_MILLIS = 180L
         val TEMPLATE_FREQUENCIES = floatArrayOf(
             60.0f, 81.7f, 111.3f, 151.6f, 206.5f, 281.3f, 383.2f, 522.0f, 711.0f,

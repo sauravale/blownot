@@ -1,0 +1,28 @@
+{
+  "file": "1782734987932_random-audio.wav",
+  "featuresFile": "1782734987932_random-audio.features.csv",
+  "label": "random-audio",
+  "startedAtMillis": 1782734987932,
+  "manufacturer": "motorola",
+  "model": "moto g13",
+  "device": "penangf",
+  "sdk": 33,
+  "sampleRate": 16000,
+  "durationSeconds": 5.440,
+  "featureFrameCount": 272,
+  "detector": {
+    "triggered": false,
+    "confidence": 0.460048,
+    "speechConfidence": 0.288537,
+    "noiseFloor": 0.000829,
+    "reason": "candidate: spectral mismatch",
+    "rms": 0.017989,
+    "peak": 0.050081,
+    "zeroCrossingRate": 0.240625,
+    "spectralCentroid": 2160.901855,
+    "spectralFlatness": 0.038211,
+    "frameEnergy": 0.103558,
+    "spectralTemplateScore": 0.177577,
+    "clipping": false
+  }
+}

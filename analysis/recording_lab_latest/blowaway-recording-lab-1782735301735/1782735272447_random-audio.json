@@ -1,0 +1,28 @@
+{
+  "file": "1782735272447_random-audio.wav",
+  "featuresFile": "1782735272447_random-audio.features.csv",
+  "label": "random-audio",
+  "startedAtMillis": 1782735272447,
+  "manufacturer": "Sony",
+  "model": "XQ-ES54",
+  "device": "XQ-ES54",
+  "sdk": 35,
+  "sampleRate": 16000,
+  "durationSeconds": 3.120,
+  "featureFrameCount": 156,
+  "detector": {
+    "triggered": false,
+    "confidence": 0.000000,
+    "speechConfidence": 0.000000,
+    "noiseFloor": 0.000928,
+    "reason": "session: armed",
+    "rms": 0.001031,
+    "peak": 0.003143,
+    "zeroCrossingRate": 0.303125,
+    "spectralCentroid": 0.000000,
+    "spectralFlatness": 0.000000,
+    "frameEnergy": 0.000340,
+    "spectralTemplateScore": 0.000000,
+    "clipping": false
+  }
+}

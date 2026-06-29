@@ -1,0 +1,28 @@
+{
+  "file": "1782734565062_speech.wav",
+  "featuresFile": "1782734565062_speech.features.csv",
+  "label": "speech",
+  "startedAtMillis": 1782734565062,
+  "manufacturer": "Sony",
+  "model": "XQ-ES54",
+  "device": "XQ-ES54",
+  "sdk": 35,
+  "sampleRate": 16000,
+  "durationSeconds": 2.380,
+  "featureFrameCount": 119,
+  "detector": {
+    "triggered": false,
+    "confidence": 0.007927,
+    "speechConfidence": 0.000000,
+    "noiseFloor": 0.000600,
+    "reason": "ambient",
+    "rms": 0.000052,
+    "peak": 0.000122,
+    "zeroCrossingRate": 0.350000,
+    "spectralCentroid": 1054.017334,
+    "spectralFlatness": 0.715988,
+    "frameEnergy": 0.000001,
+    "spectralTemplateScore": 0.131765,
+    "clipping": false
+  }
+}

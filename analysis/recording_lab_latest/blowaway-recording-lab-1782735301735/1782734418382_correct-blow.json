@@ -1,0 +1,28 @@
+{
+  "file": "1782734418382_correct-blow.wav",
+  "featuresFile": "1782734418382_correct-blow.features.csv",
+  "label": "correct-blow",
+  "startedAtMillis": 1782734418382,
+  "manufacturer": "Sony",
+  "model": "XQ-ES54",
+  "device": "XQ-ES54",
+  "sdk": 35,
+  "sampleRate": 16000,
+  "durationSeconds": 1.880,
+  "featureFrameCount": 94,
+  "detector": {
+    "triggered": false,
+    "confidence": 0.273511,
+    "speechConfidence": 0.000000,
+    "noiseFloor": 0.000600,
+    "reason": "candidate: collecting",
+    "rms": 0.000068,
+    "peak": 0.000183,
+    "zeroCrossingRate": 0.525000,
+    "spectralCentroid": 2389.744873,
+    "spectralFlatness": 0.677966,
+    "frameEnergy": 0.000001,
+    "spectralTemplateScore": 0.150588,
+    "clipping": false
+  }
+}
