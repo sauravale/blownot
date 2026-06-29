@@ -24,6 +24,7 @@ class BlowNotificationListenerService : NotificationListenerService() {
     @Inject lateinit var settingsRepository: SettingsRepository
     @Inject lateinit var stateMachine: StateMachine
     @Inject lateinit var diagnosticsRepository: DiagnosticsRepository
+    @Inject lateinit var notificationSessionTracker: NotificationSessionTracker
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var activeNotificationKey: String? = null
@@ -41,7 +42,14 @@ class BlowNotificationListenerService : NotificationListenerService() {
                 return@launch
             }
             val now = System.currentTimeMillis()
-            BlowAwayLog.i("notification accepted package=${sbn.packageName} key=${sbn.key} category=${sbn.notification.category} importance=$importance suppressedPeek=$suppressedPeek windowMs=${settings.listeningWindowMillis}")
+            val session = notificationSessionTracker.markAccepted(
+                key = sbn.key,
+                packageName = sbn.packageName,
+                acceptedAtMillis = now,
+                listeningWindowMillis = settings.listeningWindowMillis,
+                hardCapMillis = NOTIFICATION_SESSION_HARD_CAP_MILLIS
+            )
+            BlowAwayLog.i("notification accepted package=${sbn.packageName} key=${sbn.key} category=${sbn.notification.category} importance=$importance suppressedPeek=$suppressedPeek windowMs=${settings.listeningWindowMillis} sessionRemaining=${session.remainingMillis(now)}")
             activeNotificationKey = sbn.key
             notificationDao.upsert(
                 NotificationEntity(
@@ -60,7 +68,8 @@ class BlowNotificationListenerService : NotificationListenerService() {
 
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         scope.launch {
-            BlowAwayLog.i("notification removed package=${sbn.packageName} key=${sbn.key}")
+            val session = notificationSessionTracker.markRemoved(sbn.key, System.currentTimeMillis())
+            BlowAwayLog.i("notification removed package=${sbn.packageName} key=${sbn.key} sessionActive=${session.active} reason=${session.reason}")
             notificationDao.deleteByKey(sbn.key)
             if (activeNotificationKey == sbn.key) {
                 activeNotificationKey = null
@@ -74,6 +83,10 @@ class BlowNotificationListenerService : NotificationListenerService() {
     override fun onDestroy() {
         scope.cancel()
         super.onDestroy()
+    }
+
+    private companion object {
+        const val NOTIFICATION_SESSION_HARD_CAP_MILLIS = 12_000L
     }
 
     private fun shouldIgnore(

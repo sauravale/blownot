@@ -104,12 +104,12 @@ class HeuristicBlowDetector(
             }
             smoothedConfidence = smoothedConfidence * 0.54f + decision.confidence * 0.46f
             if (!decision.triggered) smoothedConfidence *= 0.76f
-            return result(decision.triggered, features, speechConfidence, decision.reason)
+            return result(decision.triggered, features, speechConfidence, decision.reason, decision.debugSummary)
         }
 
         val live = liveDecision(segment)
         smoothedConfidence = smoothedConfidence * 0.72f + live.confidence * 0.28f
-        return result(false, features, speechConfidence, live.reason)
+        return result(false, features, speechConfidence, live.reason, live.debugSummary)
     }
 
     private fun gates(config: DetectionConfig): Gates {
@@ -147,11 +147,11 @@ class HeuristicBlowDetector(
             envelope < 0.42f -> "candidate: envelope mismatch"
             else -> "candidate: possible blow"
         }
-        return SegmentDecision(false, confidence, reason)
+        return SegmentDecision(false, confidence, reason, segmentDebugSummary(segment, duration, spectral, envelope))
     }
 
     private fun decide(segment: BlowSegment, config: DetectionConfig): SegmentDecision {
-        if (segment.frames == 0) return SegmentDecision(false, 0f, "candidate: empty")
+        if (segment.frames == 0) return SegmentDecision(false, 0f, "candidate: empty", "frames=0")
         val duration = segment.durationMillis
         val sensitivityOffset = (config.sensitivity - 0.62f).coerceIn(-0.35f, 0.35f)
         val minDuration = (190L - (sensitivityOffset * 35f).toLong()).coerceIn(160L, 220L)
@@ -194,7 +194,27 @@ class HeuristicBlowDetector(
             !activeEnough -> "candidate: weak airflow"
             else -> "candidate: rejected"
         }
-        return SegmentDecision(triggered, confidence, reason)
+        val debugSummary = segmentDebugSummary(
+            segment = segment,
+            duration = duration,
+            spectralScore = spectralScore,
+            envelopeScore = envelopeScore,
+            extra = " minDuration=$minDuration maxDuration=$maxDuration energyOk=$energyOk riseOk=$riseOk spectralOk=$spectralOk envelopeOk=$envelopeOk speechOnly=$speechOnly activeEnough=$activeEnough avgZcr=${"%.3f".format(avgZcr)} avgFlatness=${"%.3f".format(avgFlatness)}"
+        )
+        return SegmentDecision(triggered, confidence, reason, debugSummary)
+    }
+
+    private fun segmentDebugSummary(
+        segment: BlowSegment,
+        duration: Long,
+        spectralScore: Float,
+        envelopeScore: Float,
+        extra: String = ""
+    ): String {
+        val activeRatio = if (segment.frames == 0) 0f else segment.activeFrames / segment.frames.toFloat()
+        val speechRatio = if (segment.frames == 0) 0f else segment.speechFrames / segment.frames.toFloat()
+        val minRms = if (segment.minRms == Float.MAX_VALUE) 0f else segment.minRms
+        return "duration=${duration}ms frames=${segment.frames} active=${"%.2f".format(activeRatio)} speech=${"%.2f".format(speechRatio)} spectral=${"%.2f".format(spectralScore)} maxTemplate=${"%.2f".format(segment.maxTemplateScore)} envelope=${"%.2f".format(envelopeScore)} maxRms=${"%.4f".format(segment.maxRms)} minRms=${"%.4f".format(minRms)} peak=${"%.4f".format(segment.peak)} noise=${"%.4f".format(noiseFloor)}$extra"
     }
 
     private fun envelopeScore(values: List<Float>): Float {
@@ -220,14 +240,15 @@ class HeuristicBlowDetector(
         return (curveScore * 0.68f + bandScore * 0.32f).coerceIn(0f, 1f)
     }
 
-    private fun result(triggered: Boolean, features: BlowFeatures, speechConfidence: Float, reason: String): DetectionResult {
+    private fun result(triggered: Boolean, features: BlowFeatures, speechConfidence: Float, reason: String, debugSummary: String = ""): DetectionResult {
         return DetectionResult(
             triggered = triggered,
             confidence = smoothedConfidence.coerceIn(0f, 1f),
             speechConfidence = speechConfidence,
             noiseFloor = noiseFloor,
             features = features,
-            reason = reason
+            reason = reason,
+            debugSummary = debugSummary
         )
     }
 
@@ -354,7 +375,8 @@ class HeuristicBlowDetector(
     private data class SegmentDecision(
         val triggered: Boolean,
         val confidence: Float,
-        val reason: String
+        val reason: String,
+        val debugSummary: String = ""
     )
 
     private data class BlowSegment(
@@ -410,6 +432,7 @@ class HeuristicBlowDetector(
         fun addQuietFrame(nowMillis: Long) {
             lastSeenAt = nowMillis
         }
+
 
         fun energyScore(noiseFloor: Float): Float {
             val rmsScore = ((maxRms / max(noiseFloor * 8f, 0.008f)) - 0.45f).coerceIn(0f, 1f)
@@ -474,6 +497,3 @@ class HeuristicBlowDetector(
         )
     }
 }
-
-
-

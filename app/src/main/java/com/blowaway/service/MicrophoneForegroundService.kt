@@ -39,6 +39,7 @@ class MicrophoneForegroundService : Service() {
     @Inject lateinit var diagnosticsRepository: DiagnosticsRepository
     @Inject lateinit var recordingLabRepository: RecordingLabRepository
     @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var notificationSessionTracker: NotificationSessionTracker
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -64,22 +65,33 @@ class MicrophoneForegroundService : Service() {
                 diagnosticsRepository.updateState(state)
                 BlowAwayLog.d("service observed state=$state")
                 if (state == AppState.DebugMicMonitor) {
-                    listenUntilStateChanges(allowDismissal = false, timeoutMillis = null)
+                    listenUntilStateChanges(allowDismissal = false, timeoutMillis = null, settlingMillis = 0, calibrationMillis = 0)
                 }
                 if (state == AppState.NotificationActive || state == AppState.ListeningForBlow) {
-                    val timeoutMillis = settingsRepository.settings.first().listeningWindowMillis.coerceIn(1_000, 10_000)
+                    val settings = settingsRepository.settings.first()
+                    val timeoutMillis = settings.listeningWindowMillis.coerceIn(1_000, 10_000)
                     stateMachine.onListeningStarted()
-                    listenUntilStateChanges(allowDismissal = true, timeoutMillis = timeoutMillis)
+                    listenUntilStateChanges(
+                        allowDismissal = true,
+                        timeoutMillis = timeoutMillis,
+                        settlingMillis = settings.startupSettlingMillis.coerceIn(0, 1_000),
+                        calibrationMillis = settings.startupCalibrationMillis.coerceIn(0, 1_000)
+                    )
                 }
             }
         }
     }
 
-    private suspend fun listenUntilStateChanges(allowDismissal: Boolean, timeoutMillis: Long?) {
+    private suspend fun listenUntilStateChanges(
+        allowDismissal: Boolean,
+        timeoutMillis: Long?,
+        settlingMillis: Long,
+        calibrationMillis: Long
+    ) {
         val startedAt = System.currentTimeMillis()
-        val session = if (allowDismissal) ListeningSession(startedAt) else null
+        val session = if (allowDismissal) ListeningSession(startedAt, settlingMillis, calibrationMillis) else null
         detector.reset()
-        BlowAwayLog.i("audio loop starting allowDismissal=$allowDismissal timeoutMillis=$timeoutMillis")
+        BlowAwayLog.i("audio loop starting allowDismissal=$allowDismissal timeoutMillis=$timeoutMillis settlingMillis=$settlingMillis calibrationMillis=$calibrationMillis")
         val sampleRate = 16_000
         val frameSize = sampleRate / 50
         val minBuffer = AudioRecord.getMinBufferSize(
@@ -95,6 +107,7 @@ class MicrophoneForegroundService : Service() {
             minBuffer
         )
         val buffer = ShortArray(frameSize)
+        var lastLoopHeartbeatAt = 0L
         try {
             recorder.startRecording()
             while (stateMachine.state.value == AppState.ListeningForBlow || stateMachine.state.value == AppState.DebugMicMonitor) {
@@ -102,6 +115,13 @@ class MicrophoneForegroundService : Service() {
                 if (shouldStopListening(allowDismissal, startedAt, nowMillis, timeoutMillis)) {
                     stateMachine.onIdle()
                     break
+                }
+                if (allowDismissal && nowMillis - lastLoopHeartbeatAt >= 1_000L) {
+                    val notificationSession = notificationSessionTracker.snapshot(nowMillis)
+                    BlowAwayLog.d(
+                        "audio loop alive elapsed=${nowMillis - startedAt}ms state=${stateMachine.state.value} sessionActive=${notificationSession.active} sessionReason=${notificationSession.reason} sessionRemaining=${notificationSession.remainingMillis(nowMillis)} timeoutMillis=$timeoutMillis headsUpObserved=${AccessibilityBridge.hasVisibleHeadsUp(nowMillis, HEADS_UP_VISIBILITY_GRACE_MILLIS)}"
+                    )
+                    lastLoopHeartbeatAt = nowMillis
                 }
                 val read = recorder.read(buffer, 0, buffer.size)
                 if (read > 0) {
@@ -128,7 +148,7 @@ class MicrophoneForegroundService : Service() {
                     )
                     if (shouldLogResult(result)) {
                         BlowAwayLog.d(
-                            "detector reason=${result.reason} trigger=${result.triggered} confidence=${"%.2f".format(result.confidence)} speech=${"%.2f".format(result.speechConfidence)} rms=${"%.3f".format(result.features.rms)} noise=${"%.3f".format(result.noiseFloor)} peak=${"%.3f".format(result.features.peak)} tmpl=${"%.2f".format(result.features.spectralTemplateScore)} zcr=${"%.3f".format(result.features.zeroCrossingRate)} centroid=${"%.0f".format(result.features.spectralCentroid)} flatness=${"%.2f".format(result.features.spectralFlatness)}"
+                            "detector reason=${result.reason} trigger=${result.triggered} confidence=${"%.2f".format(result.confidence)} speech=${"%.2f".format(result.speechConfidence)} rms=${"%.3f".format(result.features.rms)} noise=${"%.3f".format(result.noiseFloor)} peak=${"%.3f".format(result.features.peak)} tmpl=${"%.2f".format(result.features.spectralTemplateScore)} zcr=${"%.3f".format(result.features.zeroCrossingRate)} centroid=${"%.0f".format(result.features.spectralCentroid)} flatness=${"%.2f".format(result.features.spectralFlatness)}${if (result.debugSummary.isBlank()) "" else " segment=${result.debugSummary}"}"
                         )
                     }
                     if (result.triggered && allowDismissal) {
@@ -145,6 +165,9 @@ class MicrophoneForegroundService : Service() {
                         stateMachine.onIdle()
                     }
                 } else {
+                    if (allowDismissal) {
+                        BlowAwayLog.d("audio read returned $read state=${stateMachine.state.value}")
+                    }
                     delay(20)
                 }
             }
@@ -164,13 +187,16 @@ class MicrophoneForegroundService : Service() {
     ): Boolean {
         if (!allowDismissal || timeoutMillis == null) return false
         val elapsed = nowMillis - startedAt
-        val headsUpVisible = AccessibilityBridge.hasVisibleHeadsUp(nowMillis, HEADS_UP_VISIBILITY_GRACE_MILLIS)
+        val notificationSession = notificationSessionTracker.snapshot(nowMillis)
+        if (notificationSession.active) {
+            return false
+        }
         if (elapsed >= HARD_LISTENING_CAP_MILLIS) {
-            BlowAwayLog.i("audio loop hard timed out after ${elapsed}ms headsUpVisible=$headsUpVisible")
+            BlowAwayLog.i("audio loop hard timed out after ${elapsed}ms sessionReason=${notificationSession.reason}")
             return true
         }
-        if (elapsed >= timeoutMillis && !headsUpVisible) {
-            BlowAwayLog.i("audio loop stopping after ${elapsed}ms because heads-up is no longer visible")
+        if (elapsed >= timeoutMillis) {
+            BlowAwayLog.i("audio loop stopping after ${elapsed}ms because notification session is ${notificationSession.reason}")
             return true
         }
         return false
@@ -198,7 +224,8 @@ class MicrophoneForegroundService : Service() {
                 speechConfidence = 0f,
                 noiseFloor = decision.alertRms,
                 features = basicFeatures,
-                reason = decision.reason
+                reason = decision.reason,
+                debugSummary = decision.debugSummary
             )
         }
         return detector.analyze(samples, sampleRate, nowMillis)
@@ -253,7 +280,11 @@ class MicrophoneForegroundService : Service() {
             .build()
     }
 
-    private class ListeningSession(private val startedAt: Long) {
+    private class ListeningSession(
+        private val startedAt: Long,
+        private val settlingMillis: Long,
+        private val calibrationMillis: Long
+    ) {
         private var phase: Phase = Phase.Settling
         private var alertRmsSum = 0f
         private var alertPeak = 0f
@@ -264,15 +295,16 @@ class MicrophoneForegroundService : Service() {
         private var analysisWindowUntil = Long.MIN_VALUE
         private var armedLogged = false
         private var lastSessionReason = ""
+        private var lastGateHeartbeatAt = 0L
 
         fun onFrame(features: BlowFeatures, nowMillis: Long): GateDecision {
             val elapsed = nowMillis - startedAt
-            if (elapsed < SETTLING_MILLIS) {
+            if (elapsed < settlingMillis) {
                 updateRecent(features)
                 return decision(false, true, "session: settling", features)
             }
 
-            if (elapsed < SETTLING_MILLIS + CALIBRATION_MILLIS) {
+            if (elapsed < settlingMillis + calibrationMillis) {
                 phase = Phase.CalibratingAlertBed
                 collectAlertBed(features)
                 updateRecent(features)
@@ -292,9 +324,12 @@ class MicrophoneForegroundService : Service() {
                 return decision(false, true, "session: armed", features)
             }
 
-            val transient = looksLikeTransientAboveAlertBed(features)
-            if (transient && nowMillis > analysisWindowUntil) {
+            val gate = transientGate(features)
+            if (gate.transient && nowMillis > analysisWindowUntil) {
                 analysisWindowUntil = nowMillis + ANALYSIS_WINDOW_MILLIS
+                BlowAwayLog.d(
+                    "session gate opened elapsed=${elapsed}ms rms=${"%.3f".format(features.rms)} peak=${"%.3f".format(features.peak)} zcr=${"%.3f".format(features.zeroCrossingRate)} rmsGate=${"%.3f".format(gate.rmsGate)} peakGate=${"%.3f".format(gate.peakGate)} airflowLike=${gate.airflowLike}"
+                )
                 updateRecent(features)
                 return decision(true, true, "session: transient analysis", features)
             }
@@ -319,24 +354,50 @@ class MicrophoneForegroundService : Service() {
             alertFrames += 1
         }
 
-        private fun looksLikeTransientAboveAlertBed(features: BlowFeatures): Boolean {
+        private fun transientGate(features: BlowFeatures): TransientGate {
             val rmsGate = max(max(alertRms * 1.30f, recentRms * 1.25f), alertRms + 0.0015f).coerceAtLeast(0.0025f)
             val peakGate = max(max(alertPeak * 1.10f, 0.0060f), alertPeak + 0.0020f)
             val energeticRise = features.rms >= rmsGate && features.peak >= peakGate
             val airflowLike = features.zeroCrossingRate >= 0.10f || features.peak >= max(alertPeak * 1.35f, 0.008f)
-            return energeticRise && airflowLike
+            return TransientGate(
+                transient = energeticRise && airflowLike,
+                rmsGate = rmsGate,
+                peakGate = peakGate,
+                airflowLike = airflowLike
+            )
         }
+
+        private data class TransientGate(
+            val transient: Boolean,
+            val rmsGate: Float,
+            val peakGate: Float,
+            val airflowLike: Boolean
+        )
 
         private fun updateRecent(features: BlowFeatures) {
             recentRms = recentRms * 0.90f + features.rms * 0.10f
         }
 
         private fun decision(analyze: Boolean, resetDetector: Boolean, reason: String, features: BlowFeatures): GateDecision {
-            if (reason != lastSessionReason) {
-                BlowAwayLog.d("listening session reason=$reason rms=${"%.3f".format(features.rms)} alert=${"%.3f".format(alertRms)} peak=${"%.3f".format(features.peak)} zcr=${"%.3f".format(features.zeroCrossingRate)}")
+            val now = System.currentTimeMillis()
+            if (reason != lastSessionReason || (reason == "session: armed" && now - lastGateHeartbeatAt >= 1_000L)) {
+                BlowAwayLog.d(
+                    "listening session reason=$reason analyze=$analyze resetDetector=$resetDetector rms=${"%.3f".format(features.rms)} alert=${"%.3f".format(alertRms)} recent=${"%.3f".format(recentRms)} peak=${"%.3f".format(features.peak)} alertPeak=${"%.3f".format(alertPeak)} zcr=${"%.3f".format(features.zeroCrossingRate)} windowRemaining=${windowRemaining(now)}"
+                )
                 lastSessionReason = reason
+                lastGateHeartbeatAt = now
             }
-            return GateDecision(analyze, resetDetector, reason, alertRms)
+            return GateDecision(
+                analyze = analyze,
+                resetDetector = resetDetector,
+                reason = reason,
+                alertRms = alertRms,
+                debugSummary = "gateReason=$reason windowRemaining=${windowRemaining(now)} alertRms=${"%.4f".format(alertRms)} recentRms=${"%.4f".format(recentRms)}"
+            )
+        }
+
+        private fun windowRemaining(nowMillis: Long): Long {
+            return if (analysisWindowUntil == Long.MIN_VALUE) 0L else (analysisWindowUntil - nowMillis).coerceAtLeast(0L)
         }
 
         private enum class Phase {
@@ -346,8 +407,6 @@ class MicrophoneForegroundService : Service() {
         }
 
         companion object {
-            private const val SETTLING_MILLIS = 350L
-            private const val CALIBRATION_MILLIS = 250L
             private const val ANALYSIS_WINDOW_MILLIS = 1_200L
         }
     }
@@ -356,7 +415,8 @@ class MicrophoneForegroundService : Service() {
         val analyze: Boolean,
         val resetDetector: Boolean,
         val reason: String,
-        val alertRms: Float
+        val alertRms: Float,
+        val debugSummary: String = ""
     )
 
     private companion object {
@@ -365,8 +425,3 @@ class MicrophoneForegroundService : Service() {
         const val HARD_LISTENING_CAP_MILLIS = 12_000L
     }
 }
-
-
-
-
-

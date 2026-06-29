@@ -1,4 +1,4 @@
-﻿package com.blowaway.core.detection
+package com.blowaway.core.detection
 
 data class DetectionConfig(
     val sensitivity: Float = 0.62f,
@@ -27,12 +27,11 @@ data class DetectionResult(
     val speechConfidence: Float,
     val noiseFloor: Float,
     val features: BlowFeatures,
-    val reason: String
+    val reason: String,
+    val debugSummary: String = ""
 )
 
 interface BlowDetector {
     fun analyze(samples: ShortArray, sampleRate: Int, nowMillis: Long): DetectionResult
     fun reset() = Unit
 }
-
-

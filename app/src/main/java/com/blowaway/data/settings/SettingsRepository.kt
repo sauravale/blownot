@@ -1,4 +1,4 @@
-﻿package com.blowaway.data.settings
+package com.blowaway.data.settings
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -7,10 +7,10 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 private val Context.settingsDataStore by preferencesDataStore("settings")
 
@@ -26,6 +26,8 @@ class SettingsRepository @Inject constructor(
             sensitivity = preferences[Keys.sensitivity] ?: 0.62f,
             cooldownMillis = preferences[Keys.cooldownMillis] ?: 2_000,
             listeningWindowMillis = preferences[Keys.listeningWindowMillis] ?: 3_000,
+            startupSettlingMillis = preferences[Keys.startupSettlingMillis] ?: 350,
+            startupCalibrationMillis = preferences[Keys.startupCalibrationMillis] ?: 250,
             gestureDurationMillis = preferences[Keys.gestureDurationMillis] ?: 200,
             ignoreAlarms = preferences[Keys.ignoreAlarms] ?: true,
             ignoreMedia = preferences[Keys.ignoreMedia] ?: true,
@@ -43,6 +45,8 @@ class SettingsRepository @Inject constructor(
             preferences[Keys.sensitivity] = settings.sensitivity
             preferences[Keys.cooldownMillis] = settings.cooldownMillis
             preferences[Keys.listeningWindowMillis] = settings.listeningWindowMillis
+            preferences[Keys.startupSettlingMillis] = settings.startupSettlingMillis
+            preferences[Keys.startupCalibrationMillis] = settings.startupCalibrationMillis
             preferences[Keys.gestureDurationMillis] = settings.gestureDurationMillis
             preferences[Keys.ignoreAlarms] = settings.ignoreAlarms
             preferences[Keys.ignoreMedia] = settings.ignoreMedia
@@ -59,6 +63,8 @@ class SettingsRepository @Inject constructor(
         val sensitivity = floatPreferencesKey("sensitivity")
         val cooldownMillis = longPreferencesKey("cooldown_millis")
         val listeningWindowMillis = longPreferencesKey("listening_window_millis")
+        val startupSettlingMillis = longPreferencesKey("startup_settling_millis")
+        val startupCalibrationMillis = longPreferencesKey("startup_calibration_millis")
         val gestureDurationMillis = longPreferencesKey("gesture_duration_millis")
         val ignoreAlarms = booleanPreferencesKey("ignore_alarms")
         val ignoreMedia = booleanPreferencesKey("ignore_media")

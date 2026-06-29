@@ -26,7 +26,8 @@ class TestNotificationPoster @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val stateMachine: StateMachine,
-    private val diagnosticsRepository: DiagnosticsRepository
+    private val diagnosticsRepository: DiagnosticsRepository,
+    private val notificationSessionTracker: NotificationSessionTracker
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -56,9 +57,18 @@ class TestNotificationPoster @Inject constructor(
         NotificationManagerCompat.from(context).notify(notificationId, notification)
         scope.launch {
             val settings = settingsRepository.settings.first()
-            diagnosticsRepository.updateNotification(context.packageName, "test-notification:$notificationId")
+            val key = "test-notification:$notificationId"
+            val now = System.currentTimeMillis()
+            val session = notificationSessionTracker.markAccepted(
+                key = key,
+                packageName = context.packageName,
+                acceptedAtMillis = now,
+                listeningWindowMillis = settings.listeningWindowMillis,
+                hardCapMillis = TEST_NOTIFICATION_SESSION_HARD_CAP_MILLIS
+            )
+            diagnosticsRepository.updateNotification(context.packageName, key)
             diagnosticsRepository.updateCooldown(settings.listeningWindowMillis)
-            BlowAwayLog.i("test notification opened listening window windowMs=${settings.listeningWindowMillis}")
+            BlowAwayLog.i("test notification opened listening window windowMs=${settings.listeningWindowMillis} sessionRemaining=${session.remainingMillis(now)}")
             stateMachine.onHeadsUpDetected()
         }
     }
@@ -78,6 +88,7 @@ class TestNotificationPoster @Inject constructor(
 
     private companion object {
         const val CHANNEL_ID = "blowaway_test_notifications"
+        const val TEST_NOTIFICATION_SESSION_HARD_CAP_MILLIS = 12_000L
         val nextNotificationId = AtomicInteger(9001)
     }
 }

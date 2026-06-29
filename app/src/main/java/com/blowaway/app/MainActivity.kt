@@ -191,6 +191,8 @@ private fun BlowAwayApp(
                 0 -> SettingsScreen(settings = settings, onUpdate = viewModel::updateSettings)
                 1 -> DebugScreen(
                     diagnostics = diagnostics,
+                    settings = settings,
+                    onUpdateSettings = viewModel::updateSettings,
                     onStartLiveMonitor = {
                         pendingMicAction = {
                             startService()

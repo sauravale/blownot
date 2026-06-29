@@ -1,4 +1,4 @@
-﻿package com.blowaway.ui
+package com.blowaway.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +17,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -24,11 +26,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.blowaway.core.state.AppState
+import com.blowaway.data.settings.AppSettings
 import com.blowaway.service.DiagnosticsState
 
 @Composable
 fun DebugScreen(
     diagnostics: DiagnosticsState,
+    settings: AppSettings,
+    onUpdateSettings: (AppSettings) -> Unit,
     onStartLiveMonitor: () -> Unit,
     onStopLiveMonitor: () -> Unit,
     onDebugGesture: (String) -> Unit,
@@ -53,6 +58,33 @@ fun DebugScreen(
                 Text("Stop")
             }
         }
+
+        Text("Startup timing", style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { onUpdateSettings(settings.copy(startupSettlingMillis = 0, startupCalibrationMillis = 0)) },
+                modifier = Modifier.weight(1f)
+            ) { Text("No wait") }
+            OutlinedButton(
+                onClick = { onUpdateSettings(settings.copy(startupSettlingMillis = 120, startupCalibrationMillis = 80)) },
+                modifier = Modifier.weight(1f)
+            ) { Text("Fast") }
+            OutlinedButton(
+                onClick = { onUpdateSettings(settings.copy(startupSettlingMillis = 350, startupCalibrationMillis = 250)) },
+                modifier = Modifier.weight(1f)
+            ) { Text("Current") }
+        }
+        TimingSlider(
+            label = "Settling",
+            valueMillis = settings.startupSettlingMillis,
+            onValueChange = { onUpdateSettings(settings.copy(startupSettlingMillis = it)) }
+        )
+        TimingSlider(
+            label = "Calibration",
+            valueMillis = settings.startupCalibrationMillis,
+            onValueChange = { onUpdateSettings(settings.copy(startupCalibrationMillis = it)) }
+        )
+
         Text("Gesture tests", style = MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
             Button(onClick = { onDebugGesture("up_high") }, modifier = Modifier.weight(1f)) {
@@ -87,6 +119,20 @@ fun DebugScreen(
         DebugRow("Total dismissals", diagnostics.totalDismissals.toString())
         DebugRow("False triggers", diagnostics.falseTriggers.toString())
         DebugRow("Missed detections", diagnostics.missedDetections.toString())
+    }
+}
+
+@Composable
+private fun TimingSlider(label: String, valueMillis: Long, onValueChange: (Long) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        DebugRow(label, "${valueMillis}ms")
+        Slider(
+            value = valueMillis.coerceIn(0, 1_000).toFloat(),
+            onValueChange = { onValueChange((it / 20f).toInt() * 20L) },
+            valueRange = 0f..1_000f,
+            steps = 49,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

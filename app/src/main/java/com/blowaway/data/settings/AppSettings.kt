@@ -1,4 +1,4 @@
-﻿package com.blowaway.data.settings
+package com.blowaway.data.settings
 
 data class AppSettings(
     val enabled: Boolean = true,
@@ -7,6 +7,8 @@ data class AppSettings(
     val sensitivity: Float = 0.62f,
     val cooldownMillis: Long = 2_000,
     val listeningWindowMillis: Long = 3_000,
+    val startupSettlingMillis: Long = 350,
+    val startupCalibrationMillis: Long = 250,
     val gestureDurationMillis: Long = 200,
     val ignoreAlarms: Boolean = true,
     val ignoreMedia: Boolean = true,
