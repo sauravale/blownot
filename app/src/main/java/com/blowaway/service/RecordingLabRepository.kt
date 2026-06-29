@@ -1,4 +1,4 @@
-﻿package com.blowaway.service
+package com.blowaway.service
 
 import android.content.Context
 import android.os.Build
@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
 private const val MAX_RECORDING_MILLIS = 20_000L
+private const val FEATURE_CSV_HEADER = "label,elapsedMillis,frameIndex,sampleRate,triggered,confidence,speechConfidence,noiseFloor,reason,rms,peak,zeroCrossingRate,spectralCentroid,spectralFlatness,frameEnergy,clipping,spectralTemplateScore"
 
 data class RecordingLabState(
     val activeLabel: String = "",
@@ -71,11 +72,11 @@ class RecordingLabRepository @Inject constructor(
                 activeLabel = "",
                 isRecording = false,
                 clipCount = clipCount,
-                lastClipPath = clip.wav.absolutePath,
-                status = "Saved ${clip.wav.name}"
+                lastClipPath = clip.features.absolutePath,
+                status = "Saved ${clip.features.name}"
             )
         }
-        BlowAwayLog.i("recording lab saved wav=${clip.wav.absolutePath} metadata=${clip.metadata.absolutePath}")
+        BlowAwayLog.i("recording lab saved wav=${clip.wav.absolutePath} metadata=${clip.metadata.absolutePath} features=${clip.features.absolutePath}")
         return clip.wav
     }
 
@@ -93,6 +94,7 @@ class RecordingLabRepository @Inject constructor(
         samples: ShortArray,
         sampleRate: Int,
         features: BlowFeatures,
+        triggered: Boolean,
         confidence: Float,
         speechConfidence: Float,
         noiseFloor: Float,
@@ -105,7 +107,18 @@ class RecordingLabRepository @Inject constructor(
             return
         }
         if (session.sampleRate == 0) session.sampleRate = sampleRate
+        session.appendFrame(
+            nowMillis = nowMillis,
+            sampleRate = sampleRate,
+            features = features,
+            triggered = triggered,
+            confidence = confidence,
+            speechConfidence = speechConfidence,
+            noiseFloor = noiseFloor,
+            reason = reason
+        )
         session.lastFeatures = features
+        session.lastTriggered = triggered
         session.lastConfidence = confidence
         session.lastSpeechConfidence = speechConfidence
         session.lastNoiseFloor = noiseFloor
@@ -144,10 +157,12 @@ class RecordingLabRepository @Inject constructor(
         val label = session.label
         val wav = File(rootDir, "${timestamp}_$label.wav")
         val metadata = File(rootDir, "${timestamp}_$label.json")
+        val features = File(rootDir, "${timestamp}_$label.features.csv")
         val pcmBytes = session.pcm.toByteArray()
         writeWav(wav, pcmBytes, session.sampleRate.coerceAtLeast(16_000))
-        metadata.writeText(session.toJson(wav.name))
-        return ClipFiles(wav, metadata)
+        metadata.writeText(session.toJson(wav.name, features.name))
+        features.writeText(session.featuresCsv())
+        return ClipFiles(wav, metadata, features)
     }
 
     private fun writeWav(file: File, pcmBytes: ByteArray, sampleRate: Int) {
@@ -170,7 +185,7 @@ class RecordingLabRepository @Inject constructor(
         }
     }
 
-    private data class ClipFiles(val wav: File, val metadata: File)
+    private data class ClipFiles(val wav: File, val metadata: File, val features: File)
 
     private data class ActiveSession(
         val label: String,
@@ -178,16 +193,56 @@ class RecordingLabRepository @Inject constructor(
         val pcm: ByteArrayOutputStream,
         var sampleRate: Int = 0,
         var lastFeatures: BlowFeatures? = null,
+        var lastTriggered: Boolean = false,
         var lastConfidence: Float = 0f,
         var lastSpeechConfidence: Float = 0f,
         var lastNoiseFloor: Float = 0f,
-        var lastReason: String = ""
+        var lastReason: String = "",
+        var frameCount: Int = 0,
+        val featureRows: StringBuilder = StringBuilder()
     ) {
-        fun toJson(wavName: String): String {
+        fun appendFrame(
+            nowMillis: Long,
+            sampleRate: Int,
+            features: BlowFeatures,
+            triggered: Boolean,
+            confidence: Float,
+            speechConfidence: Float,
+            noiseFloor: Float,
+            reason: String
+        ) {
+            if (featureRows.isEmpty()) featureRows.appendLine(FEATURE_CSV_HEADER)
+            featureRows.append(label.csv()).append(',')
+                .append(nowMillis - startedAtMillis).append(',')
+                .append(frameCount++).append(',')
+                .append(sampleRate).append(',')
+                .append(triggered).append(',')
+                .append(confidence.format()).append(',')
+                .append(speechConfidence.format()).append(',')
+                .append(noiseFloor.format()).append(',')
+                .append(reason.csv()).append(',')
+                .append(features.rms.format()).append(',')
+                .append(features.peak.format()).append(',')
+                .append(features.zeroCrossingRate.format()).append(',')
+                .append(features.spectralCentroid.format()).append(',')
+                .append(features.spectralFlatness.format()).append(',')
+                .append(features.frameEnergy.format()).append(',')
+                .append(features.clipping).append(',')
+                .append(features.spectralTemplateScore.format())
+                .appendLine()
+        }
+
+        fun featuresCsv(): String {
+            if (featureRows.isEmpty()) featureRows.appendLine(FEATURE_CSV_HEADER)
+            return featureRows.toString()
+        }
+
+        fun toJson(wavName: String, featuresName: String): String {
             val features = lastFeatures
             return buildString {
                 appendLine("{")
                 appendLine("  \"file\": \"${wavName.json()}\",")
+                appendLine("  \"featuresFile\": \"${featuresName.json()}\",")
                 appendLine("  \"label\": \"${label.json()}\",")
                 appendLine("  \"startedAtMillis\": $startedAtMillis,")
                 appendLine("  \"manufacturer\": \"${(Build.MANUFACTURER ?: "unknown").json()}\",")
@@ -196,7 +251,9 @@ class RecordingLabRepository @Inject constructor(
                 appendLine("  \"sdk\": ${Build.VERSION.SDK_INT},")
                 appendLine("  \"sampleRate\": $sampleRate,")
                 appendLine("  \"durationSeconds\": ${"%.3f".format(Locale.US, pcm.size() / 2f / sampleRate.coerceAtLeast(1))},")
+                appendLine("  \"featureFrameCount\": $frameCount,")
                 appendLine("  \"detector\": {")
+                appendLine("    \"triggered\": $lastTriggered,")
                 appendLine("    \"confidence\": ${lastConfidence.format()},")
                 appendLine("    \"speechConfidence\": ${lastSpeechConfidence.format()},")
                 appendLine("    \"noiseFloor\": ${lastNoiseFloor.format()},")
@@ -207,6 +264,7 @@ class RecordingLabRepository @Inject constructor(
                 appendLine("    \"spectralCentroid\": ${features?.spectralCentroid.format()},")
                 appendLine("    \"spectralFlatness\": ${features?.spectralFlatness.format()},")
                 appendLine("    \"frameEnergy\": ${features?.frameEnergy.format()},")
+                appendLine("    \"spectralTemplateScore\": ${features?.spectralTemplateScore.format()},")
                 appendLine("    \"clipping\": ${features?.clipping ?: false}")
                 appendLine("  }")
                 appendLine("}")
@@ -235,5 +293,7 @@ private fun String.sanitizeFilePart(): String = lowercase(Locale.US)
     .ifBlank { "unlabelled" }
 
 private fun String.json(): String = replace("\\", "\\\\").replace("\"", "\\\"")
+
+private fun String.csv(): String = "\"${json()}\""
 
 private fun Float?.format(): String = if (this == null) "0.000000" else String.format(Locale.US, "%.6f", this)

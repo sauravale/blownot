@@ -1,4 +1,4 @@
-﻿package com.blowaway.service
+package com.blowaway.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -119,6 +119,7 @@ class MicrophoneForegroundService : Service() {
                         samples = samples,
                         sampleRate = sampleRate,
                         features = result.features,
+                        triggered = result.triggered,
                         confidence = result.confidence,
                         speechConfidence = result.speechConfidence,
                         noiseFloor = result.noiseFloor,

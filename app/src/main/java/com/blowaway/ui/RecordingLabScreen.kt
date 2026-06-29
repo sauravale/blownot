@@ -1,4 +1,4 @@
-﻿package com.blowaway.ui
+package com.blowaway.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,13 +23,14 @@ import androidx.compose.ui.unit.dp
 import com.blowaway.service.RecordingLabState
 
 private val ScenarioLabels = listOf(
-    "Ambient quiet",
-    "Ambient noisy",
-    "Speech",
-    "Blow close",
-    "Blow normal",
-    "Blow far",
-    "Failed blow"
+    "Correct blow",
+    "Correct blow close",
+    "Correct blow far",
+    "False steady blow",
+    "Background quiet",
+    "Background noisy",
+    "Random audio",
+    "Speech"
 )
 
 @Composable
