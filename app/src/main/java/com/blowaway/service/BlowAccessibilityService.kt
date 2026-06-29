@@ -1,4 +1,4 @@
-﻿package com.blowaway.service
+package com.blowaway.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
@@ -56,6 +56,14 @@ class BlowAccessibilityService : AccessibilityService() {
     }
 
     fun hasVisibleHeadsUp(nowMillis: Long, maxAgeMillis: Long): Boolean {
+        val freshBounds = rootInActiveWindow?.let(::findLikelyNotificationBounds)
+        if (freshBounds != null) {
+            cachedBounds = freshBounds
+            cachedBoundsAtMillis = nowMillis
+            diagnosticsRepository.updateBounds(freshBounds)
+            return true
+        }
+
         val bounds = cachedBounds ?: return false
         return !bounds.isEmpty && nowMillis - cachedBoundsAtMillis <= maxAgeMillis
     }
@@ -229,3 +237,4 @@ class BlowAccessibilityService : AccessibilityService() {
         return null
     }
 }
+

@@ -345,9 +345,9 @@ class MicrophoneForegroundService : Service() {
         }
 
         companion object {
-            private const val SETTLING_MILLIS = 650L
-            private const val CALIBRATION_MILLIS = 450L
-            private const val ANALYSIS_WINDOW_MILLIS = 900L
+            private const val SETTLING_MILLIS = 350L
+            private const val CALIBRATION_MILLIS = 250L
+            private const val ANALYSIS_WINDOW_MILLIS = 1_200L
         }
     }
 
@@ -364,6 +364,7 @@ class MicrophoneForegroundService : Service() {
         const val HARD_LISTENING_CAP_MILLIS = 12_000L
     }
 }
+
 
 
 

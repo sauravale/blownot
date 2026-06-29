@@ -169,17 +169,17 @@ class HeuristicBlowDetector(
         val durationOk = duration in minDuration..maxDuration
         val spectralOk = spectralScore >= (0.62f - sensitivityOffset * 0.05f) && segment.maxTemplateScore >= 0.68f
         val envelopeOk = envelopeScore >= (0.52f - sensitivityOffset * 0.05f)
-        val toneLike = avgFlatness < 0.025f && avgZcr < 0.11f && spectralScore < 0.68f
+        val toneLike = duration > 640L && avgFlatness < 0.018f && avgZcr < 0.075f && spectralScore < 0.58f && envelopeScore < 0.56f
         val speechOnly = speechRatio > 0.82f && spectralScore < 0.66f && envelopeScore < 0.68f
         val activeEnough = activeRatio >= 0.30f
-        val triggered = durationOk && energyOk && riseOk && spectralOk && envelopeOk && !toneLike && !speechOnly && activeEnough
+        val triggered = durationOk && energyOk && riseOk && spectralOk && envelopeOk && !speechOnly && activeEnough
         val confidence = (
             spectralScore * 0.42f +
                 envelopeScore * 0.30f +
                 segment.energyScore(noiseFloor) * 0.16f +
                 activeRatio.coerceIn(0f, 1f) * 0.12f -
                 if (speechOnly) 0.25f else 0f -
-                if (toneLike) 0.20f else 0f
+                if (toneLike) 0.08f else 0f
             ).coerceIn(0f, 1f)
         val reason = when {
             triggered -> "blow confirmed: template event"
@@ -474,5 +474,6 @@ class HeuristicBlowDetector(
         )
     }
 }
+
 
 
